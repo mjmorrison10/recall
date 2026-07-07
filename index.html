@@ -2,9 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F6F8" media="(prefers-color-scheme: light)">
 <meta name="description" content="RECALL by Michael Morrison — searchable clip-memory for short-form creators.">
+
+<!-- PWA: web app manifest + iOS Add-to-Home-Screen tags -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RECALL">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png">
+
 <title>RECALL — by Michael Morrison</title>
 </head>
 <body>
@@ -636,6 +652,16 @@
     if(l){l.innerHTML="";im.alt="Michael Morrison";l.appendChild(im);}};im.src="logo.png";})();
 
   renderChips();renderBin();search();
+
+  // Register service worker so the app shell caches for offline use after the
+  // first visit. localStorage stays as-is — the SW only handles asset caching.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function (err) {
+        console.warn("recall: service worker registration failed", err);
+      });
+    });
+  }
 })();
 </script>
 </body>
