@@ -64,8 +64,12 @@
         <p>Click <code>+ add source</code>. Give it a title (e.g. <code>Tate x Fresh &amp; Fit — Ep 214</code>). Then either:</p>
         <ul>
           <li><b>Paste a transcript</b> — any timestamped transcript. One line per moment, each starting with a timecode like <code>[00:01:23]</code>, <code>1:23</code>, or <code>01:23:45</code>.</li>
-          <li><b>Upload audio or video</b> — drag in an <code>.mp3</code>, <code>.m4a</code>, <code>.wav</code>, or video file. RECALL sends it to Google Gemini for transcription (requires an API key — see Section 3).</li>
+          <li><b>Upload audio or video</b> — drag in an audio or video file. RECALL sends it to Google Gemini for transcription (requires an API key — see Section 3).</li>
         </ul>
+
+        <div class="note"><b>Audio only is recommended when you can.</b> An hour-long <code>.mp3</code> at 128kbps is roughly 60MB; the same content as <code>.mp4</code> video is 500MB or more. Gemini extracts audio from video anyway, so uploading audio-only gives you the same transcription with a much smaller, faster upload. Best audio formats: <code>.m4a</code>, <code>.mp3</code>, <code>.wav</code>, <code>.opus</code>. File size limit is ~95MB (~1.5 hours of compressed audio).</div>
+
+        <div class="note muted"><b>Don't have the raw file anymore?</b> If you livestreamed and only have a YouTube URL (no studio mix, no raw recording), use a YouTube downloader to grab the audio-only version, then upload that to RECALL. Recommended: <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener"><b>yt-dlp</b></a> (free, open source) — one-liner: <code>yt-dlp -x --audio-format m4a "https://youtube.com/..."</code>. GUI alternatives: <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> (clean web-based), or any standard YouTube downloader. Grab the audio, save it locally, then drag it into RECALL.</div>
       </div>
 
       <div class="step">

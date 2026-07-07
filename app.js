@@ -598,7 +598,7 @@
         '<div class="pick">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
         'Choose audio or video file</div>' +
-        '<div class="hint">mp3 \u00b7 m4a \u00b7 wav \u00b7 mp4 \u00b7 mov \u00b7 webm \u2014 up to ~9.5 hrs</div>';
+        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to ~9.5 hrs</div>';
       return;
     }
     uploadzone.classList.add("has-file");
