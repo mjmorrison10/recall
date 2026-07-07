@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F5F6F8" media="(prefers-color-scheme: light)">
+<meta name="description" content="How to use RECALL — install the app, get a Gemini API key, and search your transcript library.">
+
+<!-- PWA: same manifest + iOS tags as the main app so this page works in the installed shell too -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RECALL">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png">
+
+<title>How to use RECALL</title>
+
+<style>
+  :root{
+    --ground:#0E1116; --surface:#161B22; --surface2:#1D242E; --border:#2A333F;
+    --ink:#E6EAF0; --muted:#8A94A6; --faint:#5C6675;
+    --gold:#E8B54D; --gold-deep:#C8912E; --gold-ghost:rgba(232,181,77,.14);
+    --brand:#2AA8F2; --brand-ghost:rgba(42,168,242,.16);
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px -12px rgba(0,0,0,.6);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#F5F6F8; --surface:#FFFFFF; --surface2:#F0F2F5; --border:#DDE1E7;
+      --ink:#161B22; --muted:#5A6472; --faint:#8A94A6;
+      --gold:#B8862B; --gold-deep:#996E1E; --gold-ghost:rgba(184,134,43,.13);
+      --shadow:0 1px 2px rgba(16,20,25,.04), 0 12px 28px -16px rgba(16,20,25,.18);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1116; --surface:#161B22; --surface2:#1D242E; --border:#2A333F;
+    --ink:#E6EAF0; --muted:#8A94A6; --faint:#5C6675;
+    --gold:#E8B54D; --gold-deep:#C8912E; --gold-ghost:rgba(232,181,77,.14);
+    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px -12px rgba(0,0,0,.6);
+  }
+  :root[data-theme="light"]{
+    --ground:#F5F6F8; --surface:#FFFFFF; --surface2:#F0F2F5; --border:#DDE1E7;
+    --ink:#161B22; --muted:#5A6472; --faint:#8A94A6;
+    --gold:#B8862B; --gold-deep:#996E1E; --gold-ghost:rgba(184,134,43,.13);
+    --shadow:0 1px 2px rgba(16,20,25,.04), 0 12px 28px -16px rgba(16,20,25,.18);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.55}
+  .wrap{max-width:760px;margin:0 auto;padding:22px 20px 80px}
+
+  /* top bar — same shape as the main page */
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+  .logo{width:46px;height:46px;border-radius:12px;background:var(--brand);flex:none;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    box-shadow:0 0 0 3px var(--brand-ghost)}
+  .logo img{width:100%;height:100%;object-fit:contain;display:block}
+  .lock{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .lock .by{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted)}
+  .mark{font-family:var(--mono);font-weight:700;font-size:19px;letter-spacing:.26em;
+    color:var(--ink);display:inline-flex;align-items:center;gap:.5ch}
+  .mark .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);
+    box-shadow:0 0 0 3px var(--gold-ghost)}
+  .actions{margin-left:auto;display:flex;gap:8px}
+  .iconbtn{background:var(--surface);border:1px solid var(--border);
+    color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+    padding:7px 11px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+    text-decoration:none;transition:.12s}
+  .iconbtn:hover{color:var(--ink);border-color:var(--gold)}
+
+  /* page header */
+  .pagehead{margin-bottom:32px}
+  .pagehead h1{margin:0 0 8px;font-size:30px;letter-spacing:-.01em;line-height:1.15;font-weight:700}
+  .pagehead p{margin:0;color:var(--muted);font-size:14.5px;max-width:60ch;line-height:1.6}
+
+  /* sections */
+  .howsection{margin-bottom:38px;scroll-margin-top:80px}
+  .howsection .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border-radius:9px;background:var(--gold-ghost);color:var(--gold-deep);
+    font-family:var(--mono);font-weight:700;font-size:13.5px;letter-spacing:.04em;
+    margin-bottom:9px}
+  .howsection h2{margin:0 0 6px;font-size:21px;letter-spacing:-.01em;font-weight:700}
+  .howsection > .intro{margin:0 0 18px;color:var(--muted);font-size:14.5px;max-width:62ch;line-height:1.6}
+
+  .steps{display:flex;flex-direction:column;gap:11px}
+  .step{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;box-shadow:var(--shadow)}
+  .step h3{margin:0 0 4px;font-size:15px;font-weight:600;letter-spacing:-.005em}
+  .step h3 .ord{font-family:var(--mono);font-size:11.5px;color:var(--gold);
+    font-weight:700;margin-right:8px;letter-spacing:.04em}
+  .step p{margin:6px 0 0;color:var(--muted);font-size:13.5px;line-height:1.6}
+  .step p:last-child{margin-bottom:0}
+  .step code,.step kbd{font-family:var(--mono);font-size:12px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .step ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.65}
+  .step ul li{margin-bottom:3px}
+  .step ul li:last-child{margin-bottom:0}
+
+  /* callout boxes */
+  .note{background:var(--gold-ghost);border-left:2px solid var(--gold);
+    border-radius:8px;padding:11px 14px;font-size:13px;color:var(--ink);margin-top:14px;line-height:1.6}
+  .note b{color:var(--ink);font-weight:600}
+  .note.muted{background:var(--surface2);border-left-color:var(--border);color:var(--muted)}
+
+  /* platform sub-section within Installing */
+  .platform{border-left:2px solid var(--brand);padding:6px 0 6px 14px;margin:18px 0 4px}
+  .platform .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--brand);background:var(--brand-ghost);
+    padding:2px 8px;border-radius:5px;margin-bottom:8px}
+  .platform h3{margin:0 0 4px;font-size:15.5px;font-weight:600}
+  .platform p{margin:6px 0 0;color:var(--muted);font-size:13.5px;line-height:1.6}
+
+  .toc{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 26px}
+  .toc a{font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;
+    padding:5px 12px;text-decoration:none;transition:.12s}
+  .toc a:hover{color:var(--ink);border-color:var(--gold)}
+
+  .foot{margin-top:40px;padding:18px 2px 0;border-top:1px solid var(--border);
+    display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .foot .fname{font-weight:600;font-size:14.5px}
+  .foot .ftag{color:var(--muted);font-size:12.5px;max-width:56ch;line-height:1.5;margin-top:3px}
+  .foot .fcta{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--brand);
+    text-decoration:none;border:1px solid var(--brand-ghost);padding:9px 14px;border-radius:9px;
+    white-space:nowrap;transition:.12s}
+  .foot .fcta:hover{background:var(--brand-ghost)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a href="index.html" class="brand" style="text-decoration:none;color:inherit">
+      <span class="logo" id="logo"></span>
+      <span class="lock">
+        <span class="mark"><span class="dot"></span>RECALL</span>
+        <span class="by">by Michael Morrison</span>
+      </span>
+    </a>
+    <div class="actions">
+      <a href="index.html" class="iconbtn">← RECALL</a>
+    </div>
+  </div>
+
+  <div class="pagehead">
+    <h1>How to use RECALL</h1>
+    <p>Three things: how to use it, how to install it on your phone, and how to get a Gemini API key for audio transcription.</p>
+  </div>
+
+  <nav class="toc">
+    <a href="#use">1. Using RECALL</a>
+    <a href="#install">2. Installing RECALL</a>
+    <a href="#key">3. Getting a Gemini API key</a>
+  </nav>
+
+  <!-- ===== SECTION 1: USING RECALL ===== -->
+  <section class="howsection" id="use">
+    <div class="num">1</div>
+    <h2>Using RECALL</h2>
+    <p class="intro">RECALL is searchable memory for everything you watch and listen to. Drop in transcripts, search a phrase, get every moment across every source. Stack the moments, copy the shot list, cut.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h3><span class="ord">01</span>Add a source</h3>
+        <p>Click <code>+ add source</code>. Give it a title (e.g. <code>Tate x Fresh &amp; Fit — Ep 214</code>). Then either:</p>
+        <ul>
+          <li><b>Paste a transcript</b> — any timestamped transcript. One line per moment, each starting with a timecode like <code>[00:01:23]</code>, <code>1:23</code>, or <code>01:23:45</code>.</li>
+          <li><b>Upload audio or video</b> — drag in an <code>.mp3</code>, <code>.m4a</code>, <code>.wav</code>, or video file. RECALL sends it to Google Gemini for transcription (requires an API key — see Section 3).</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">02</span>Search</h3>
+        <p>Type a word or phrase in the search box. RECALL surfaces every moment it appears in across every source you've loaded — timecoded, highlighted, ready to grab.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">03</span>Toggle sources</h3>
+        <p>Click any source chip at the top to turn it on or off. Search results narrow to the sources you've got switched on. Useful when you've got 12 podcasts loaded and only want to search 2.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">04</span>Bin moments</h3>
+        <p>Hit <code>+ BIN</code> on any moment you want to stack. They pile up in the Clip Bin on the right. The best clips aren't one clean section — they're a line here, a callback there. This is where that gets built.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">05</span>Export</h3>
+        <p>Hit <code>EXPORT</code>. RECALL copies a clean shot list — numbered, timecoded, with source labels — to your clipboard. Paste it into your notes app, take it into your editor, go cut.</p>
+        <div class="note muted"><b>Tip:</b> transcripts and your bin live in your browser's local storage. Nothing leaves your device. Clearing your browser data will wipe the library — export your shot lists if they matter.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 2: INSTALLING RECALL ===== -->
+  <section class="howsection" id="install">
+    <div class="num">2</div>
+    <h2>Installing RECALL</h2>
+    <p class="intro">RECALL is a Progressive Web App. You can install it to your phone or desktop so it launches like a native app — no App Store, no Google Play, no download. Your library stays on your device and the app works offline once installed.</p>
+
+    <div class="platform">
+      <span class="tag">iPhone · Safari</span>
+      <h3>Add to Home Screen</h3>
+      <p>Open <code>https://mjmorrison10.github.io/recall/</code> in Safari.</p>
+      <ol style="margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.7">
+        <li>Tap the <b>Share</b> button (square with up arrow, bottom of screen).</li>
+        <li>Scroll the action sheet and tap <b>Add to Home Screen</b>.</li>
+        <li>Confirm the name "RECALL" and tap <b>Add</b>.</li>
+      </ol>
+      <p>RECALL appears on your home screen as a cyan app icon. Tap it → launches fullscreen, no Safari chrome.</p>
+      <div class="note"><b>If you already have an old RECALL shortcut:</b> long-press it → <b>Remove App</b>, then re-add. iOS caches the icon from the first install and won't refresh it until you remove and re-add.</div>
+    </div>
+
+    <div class="platform">
+      <span class="tag">Android · Chrome</span>
+      <h3>Install app</h3>
+      <p>Open <code>https://mjmorrison10.github.io/recall/</code> in Chrome.</p>
+      <ol style="margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.7">
+        <li>Chrome will prompt you to install automatically — tap <b>Install</b>. Or tap the menu (⋮) → <b>Install app</b>.</li>
+        <li>RECALL appears in your app drawer with the cyan aperture icon.</li>
+        <li>Tap it → launches fullscreen, no Chrome chrome.</li>
+      </ol>
+    </div>
+
+    <div class="platform">
+      <span class="tag">Desktop · Chrome or Edge</span>
+      <h3>Install as window app</h3>
+      <p>Open <code>https://mjmorrison10.github.io/recall/</code> in Chrome or Edge.</p>
+      <ol style="margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:13.5px;line-height:1.7">
+        <li>Click the <b>install icon (⊕)</b> in the right side of the URL bar.</li>
+        <li>Click <b>Install</b>.</li>
+      </ol>
+      <p>RECALL opens as a standalone window with its own taskbar entry — like a regular desktop app.</p>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 3: GETTING A GEMINI API KEY ===== -->
+  <section class="howsection" id="key">
+    <div class="num">3</div>
+    <h2>Getting a Gemini API key</h2>
+    <p class="intro">You only need a key if you want RECALL to transcribe audio or video files. If you only paste existing transcripts, skip this whole section.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h3><span class="ord">01</span>Open Google AI Studio</h3>
+        <p>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--brand)">aistudio.google.com/app/apikey</a> in any browser. Sign in with your Google account if you're not already.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">02</span>Create a key</h3>
+        <p>Click <b>Create API key</b>. If you don't have a project yet, Google will create one for you and the key is generated instantly. The key is a long string starting with <code>AIza</code>.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">03</span>Copy the key</h3>
+        <p>Click the copy icon next to your new key. Don't try to type it out — these are 39 characters of random text.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">04</span>Paste it into RECALL</h3>
+        <p>Open RECALL. Click <b>⚙ SETTINGS</b> in the top bar. Paste your key into the field and click <b>Save</b>. RECALL stores it in your browser's local storage and sends it to Google Gemini only when transcribing audio.</p>
+      </div>
+
+      <div class="step">
+        <h3><span class="ord">05</span>Test it</h3>
+        <p>Click <code>+ add source</code>, drag in a 1–2 minute audio clip, hit <code>Add to library</code>. If you get a green toast saying <i>"247 moments added"</i>, you're set. If you get <i>"API key rejected"</i>, the key has a typo — clear it in Settings and paste again carefully.</p>
+      </div>
+    </div>
+
+    <div class="note"><b>Cost:</b> Gemini 1.5 Flash is roughly $0.009 per hour of audio transcribed. The free tier covers most personal use without paying anything.</div>
+    <div class="note muted"><b>Privacy:</b> Your key is stored only in your browser. RECALL sends it to Google only when calling Gemini for transcription. Don't paste your key anywhere public — if it leaks, go back to aistudio.google.com and revoke it, then create a new one.</div>
+  </section>
+
+  <footer class="foot">
+    <div>
+      <div class="fname">Michael Morrison</div>
+      <div class="ftag">AI-assisted growth for creators — I turn your back catalog into a searchable clip vault, cut the shorts, and build the systems around them.</div>
+    </div>
+    <a class="fcta" href="https://mjmorrisonusa.com" target="_blank" rel="noopener">mjmorrisonusa.com &rarr;</a>
+  </footer>
+</div>
+
+<script>
+// Logo fallback (matches index.html's logic).
+(function(){
+  var im = new Image();
+  im.onload = function(){
+    var l = document.getElementById("logo");
+    if (l) { l.innerHTML = ""; im.alt = "Michael Morrison"; l.appendChild(im); }
+  };
+  im.src = "logo.png";
+})();
+</script>
+</body>
+</html>
