@@ -4,7 +4,7 @@
 
 You find the moment. RECALL makes sure you never lose one.
 
-Drop in every podcast, interview, or livestream transcript you consume. Then search a word, a phrase, or a running joke and get **every** place it shows up, across **every** source, with exact timecodes. Collect the hits into a clip concept, export the shot list, go cut.
+Drop in every podcast, interview, or livestream transcript you consume. Search a word, a phrase, or a running joke — RECALL surfaces every place it shows up, across every source, timecoded. Bin the moments, export the shot list, cut.
 
 It doesn't pick clips for you — that's your job, and no tool does it better than a sharp human. It gives your judgment **perfect recall**: the callback from 30 minutes earlier, the reference in a totally different episode, the moment you'd have needed luck to remember.
 
