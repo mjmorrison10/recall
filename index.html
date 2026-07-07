@@ -87,10 +87,48 @@
     text-decoration:none;border:1px solid var(--brand-ghost);padding:9px 14px;border-radius:9px;
     white-space:nowrap;transition:.12s}
   .foot .fcta:hover{background:var(--brand-ghost)}
-  .themebtn{margin-left:auto;background:var(--surface);border:1px solid var(--border);
+  .actions{margin-left:auto;display:flex;gap:8px}
+  .iconbtn{background:var(--surface);border:1px solid var(--border);
     color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.1em;
-    padding:7px 11px;border-radius:8px;cursor:pointer}
-  .themebtn:hover{color:var(--ink);border-color:var(--gold)}
+    padding:7px 11px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .iconbtn:hover{color:var(--ink);border-color:var(--gold)}
+  .iconbtn svg{width:13px;height:13px;display:block}
+
+  /* upload zone + settings */
+  .uploadzone{border:1px dashed var(--border);border-radius:10px;padding:18px;
+    text-align:center;cursor:pointer;transition:.15s;background:var(--surface2)}
+  .uploadzone:hover,.uploadzone.dragover{border-color:var(--gold);background:var(--gold-ghost)}
+  .uploadzone .pick{color:var(--gold);font-family:var(--mono);font-size:13px;display:inline-flex;align-items:center;gap:7px}
+  .uploadzone .pick svg{width:16px;height:16px}
+  .uploadzone .hint{color:var(--faint);font-size:11.5px;margin-top:6px;font-family:var(--mono);letter-spacing:.02em}
+  .uploadzone.has-file{padding:13px 15px;text-align:left;cursor:default;background:var(--surface)}
+  .uploadzone.has-file .row{display:flex;align-items:center;gap:10px}
+  .uploadzone.has-file .name{color:var(--ink);font-weight:600;font-size:14px;flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .uploadzone.has-file .size{color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:4px}
+  .uploadzone.has-file .x{color:var(--faint);font-size:18px;cursor:pointer;flex:none;
+    background:none;border:none;padding:0 4px;line-height:1}
+  .uploadzone.has-file .x:hover{color:var(--gold)}
+
+  .privacy{font-size:11.5px;color:var(--muted);line-height:1.55;margin-top:4px;
+    padding:10px 12px;background:var(--gold-ghost);border-radius:8px;
+    border-left:2px solid var(--gold)}
+  .privacy b{color:var(--ink);font-weight:600}
+  .privacy a{color:var(--gold-deep)}
+
+  .divider{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:var(--faint);
+    font-family:var(--mono);font-size:10px;letter-spacing:.2em}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  .keyrow{display:flex;gap:8px;align-items:center}
+  .keyrow input{flex:1;font-family:var(--mono);letter-spacing:.02em}
+  .keyrow button{flex:none;background:var(--surface2);border:1px solid var(--border);
+    color:var(--muted);font-family:var(--mono);font-size:11px;padding:9px 12px;
+    border-radius:9px;cursor:pointer}
+  .keyrow button:hover{color:var(--ink);border-color:var(--gold)}
+  .keystatus{font-family:var(--mono);font-size:11.5px;margin-top:6px}
+  .keystatus.set{color:var(--pos)}
+  .keystatus.empty{color:var(--faint)}
 
   .lede{color:var(--muted);font-size:13.5px;max-width:64ch;margin:10px 0 20px;line-height:1.6}
   .lede b{color:var(--ink);font-weight:600}
@@ -239,7 +277,13 @@
         <span class="by">by Michael Morrison</span>
       </span>
     </div>
-    <button class="themebtn" id="theme">THEME</button>
+    <div class="actions">
+      <button class="iconbtn" id="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        SETTINGS
+      </button>
+      <button class="iconbtn" id="theme">THEME</button>
+    </div>
   </div>
   <p class="lede">You find the moment. This just makes sure you never lose one. Search a word, a phrase,
     a running joke — RECALL surfaces every place it shows up, across every source, timecoded. Drop
@@ -292,10 +336,45 @@
       <p class="hint">One line per moment, each led by a timecode like <b>[00:01:23]</b>, <b>1:23</b>, or
         <b>01:23:45</b>. Lines without a timecode attach to the one above. Your library is saved on this
         device — it grows every time you add a source.</p>
+
+      <div class="divider">OR</div>
+      <div class="uploadzone" id="uploadzone" role="button" tabindex="0">
+        <div class="pick" id="picklabel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choose audio or video file
+        </div>
+        <div class="hint">mp3 · m4a · wav · mp4 · mov · webm — up to ~9.5 hrs</div>
+        <input type="file" id="audiofile" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.ogg,.flac" style="display:none">
+      </div>
+      <p class="privacy"><b>Audio is sent to Google for transcription.</b> Your transcripts stay on this
+        device and never leave it. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Need a key?</a></p>
     </div>
     <div class="mfoot">
       <button class="btn ghost" id="mcancel">Cancel</button>
       <button class="btn primary" id="msave" disabled>Add to library</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="settingscrim">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2>Settings</h2>
+    <div class="mbody">
+      <div><label>Gemini API key</label>
+        <div class="keyrow">
+          <input id="gemkey" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false">
+          <button id="keyshow" type="button">show</button>
+        </div>
+        <div class="keystatus empty" id="keystatus">No key saved.</div>
+        <p class="hint keyhint" style="margin-top:8px">Your key is stored only in this browser's
+          localStorage and sent only to Google Gemini for transcription.
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key at aistudio.google.com</a>.</p>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn ghost" id="keyclear">Clear</button>
+      <button class="btn ghost" id="keycancel">Cancel</button>
+      <button class="btn primary" id="keysave">Save</button>
     </div>
   </div>
 </div>
@@ -559,12 +638,14 @@
   // modal
   var scrim=$("#scrim"),mtitle=$("#mtitle"),mtext=$("#mtext"),msave=$("#msave");
   function openModal(){scrim.classList.add("open");mtitle.value="";mtext.value="";msave.disabled=true;
+    pendingFile=null;audiofile.value="";renderUploadZone();
     setTimeout(function(){mtitle.focus()},40);}
   function closeModal(){scrim.classList.remove("open");}
   // Cheap check on every keystroke — real parse happens at save time.
   // (Previously parse() ran on every input event, freezing the tab on hour-long transcripts.)
+  // Enable save when we have a title plus EITHER a transcript OR an uploaded file.
   function chk(){
-    msave.disabled = !(mtitle.value.trim() && mtext.value.trim());
+    msave.disabled = !(mtitle.value.trim() && (mtext.value.trim() || pendingFile));
   }
   mtitle.addEventListener("input",chk);mtext.addEventListener("input",chk);
   $("#mcancel").addEventListener("click",closeModal);
@@ -601,12 +682,28 @@
     msave.disabled = true;
     var origLabel = msave.textContent;
     try {
-      msave.textContent = "Parsing…";
-      var segs = await parseChunked(mtext.value, function(i, total){
-        msave.textContent = "Parsing… " + i + "/" + total + " lines";
-      });
-      if(!segs.length){ toast("No timecoded lines found"); return; }
-
+      var segs, source;
+      if (pendingFile) {
+        // === Transcription flow: audio file → Gemini → [HH:MM:SS] text → parse ===
+        var raw = await transcribeWithGemini(pendingFile, function (label) {
+          msave.textContent = label + "…";
+        });
+        msave.textContent = "Parsing…";
+        await yield_();
+        segs = await parseChunked(raw, function (i, total) {
+          msave.textContent = "Parsing… " + i + "/" + total;
+        });
+        if (!segs.length) { toast("No timecoded lines from Gemini"); return; }
+        source = "transcript from " + pendingFile.name;
+      } else {
+        // === Existing paste flow ===
+        msave.textContent = "Parsing…";
+        segs = await parseChunked(mtext.value, function (i, total) {
+          msave.textContent = "Parsing… " + i + "/" + total + " lines";
+        });
+        if (!segs.length) { toast("No timecoded lines found"); return; }
+        source = "pasted transcript";
+      }
       var id = uid();
       state.sources.push({id:id, title:mtitle.value.trim(), segments:segs});
       state.enabled.push(id);
@@ -614,15 +711,223 @@
       renderChips();
       search();
       closeModal();
-      toast(segs.length + " moments added");
+      toast(segs.length + " moments added (" + source + ")");
     } catch(e) {
       toast("Import failed: " + (e && e.message || "unknown error"));
       console.error("recall import error:", e);
     } finally {
       msave.disabled = false;
       msave.textContent = origLabel;
+      pendingFile = null;
+      audiofile.value = "";
+      renderUploadZone();
+      chk();
     }
   });
+
+  // === Settings (BYO Gemini API key) ===
+  var LS_SETTINGS = "recall_settings_v1";
+  function loadSettings(){
+    try { var s = JSON.parse(localStorage.getItem(LS_SETTINGS)); return s || {}; }
+    catch (e) { return {}; }
+  }
+  function saveSettingsObj(s){
+    try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); return true; }
+    catch (e) { return false; }
+  }
+
+  var settingscrim = $("#settingscrim"),
+      gemkey = $("#gemkey"),
+      keystatus = $("#keystatus"),
+      keyshow = $("#keyshow");
+
+  function openSettings(){
+    settingscrim.classList.add("open");
+    var k = loadSettings().geminiKey || "";
+    gemkey.value = k;
+    keystatus.textContent = k ? "Key saved (" + k.slice(0,4) + "…" + k.slice(-4) + ")" : "No key saved.";
+    keystatus.className = "keystatus " + (k ? "set" : "empty");
+    gemkey.type = "password";
+    keyshow.textContent = "show";
+    setTimeout(function () { gemkey.focus(); gemkey.select(); }, 40);
+  }
+  function closeSettings(){ settingscrim.classList.remove("open"); }
+
+  keyshow.addEventListener("click", function () {
+    if (gemkey.type === "password") { gemkey.type = "text"; keyshow.textContent = "hide"; }
+    else { gemkey.type = "password"; keyshow.textContent = "show"; }
+  });
+  $("#keysave").addEventListener("click", function () {
+    var k = gemkey.value.trim();
+    if (!k) { toast("Enter a key first"); return; }
+    if (!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) {
+      toast("That doesn't look like a Gemini API key");
+      return;
+    }
+    if (saveSettingsObj({ geminiKey: k })) {
+      keystatus.textContent = "Key saved (" + k.slice(0,4) + "…" + k.slice(-4) + ")";
+      keystatus.className = "keystatus set";
+      toast("API key saved");
+      closeSettings();
+    } else {
+      toast("Couldn't save key (storage full?)");
+    }
+  });
+  $("#keyclear").addEventListener("click", function () {
+    gemkey.value = "";
+    localStorage.removeItem(LS_SETTINGS);
+    keystatus.textContent = "No key saved.";
+    keystatus.className = "keystatus empty";
+    toast("API key cleared");
+  });
+  $("#keycancel").addEventListener("click", closeSettings);
+  settingscrim.addEventListener("click", function (e) { if (e.target === settingscrim) closeSettings(); });
+  $("#settings").addEventListener("click", openSettings);
+
+  // === Upload + Gemini transcription ===
+  var GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  var TRANSCRIBE_PROMPT = [
+    "Transcribe the following audio VERBATIM \u2014 no summarizing, no paraphrasing, no commentary.",
+    "",
+    "For every spoken line, output exactly one line in this format:",
+    "  [HH:MM:SS]  text spoken at that timestamp",
+    "",
+    "Rules:",
+    "- HH = hours, MM = minutes, SS = seconds. Always include hours, so [00:01:23], not [1:23].",
+    "- One line per natural utterance \u2014 speaker change, sentence boundary, or short pause.",
+    "- If multiple speakers are present, prefix each line with 'Speaker A:' or 'Speaker B:', or a name if a speaker introduces themselves.",
+    "- Include filler words like 'um', 'uh', 'you know' \u2014 they're part of the verbatim transcript.",
+    "- Do NOT include any preamble, summary, or commentary before the first timestamped line.",
+    "- Do NOT include timestamps in any format other than [HH:MM:SS].",
+    "- Output ONLY the timestamped transcript lines."
+  ].join("\n");
+  // ~95MB raw = ~127MB base64, comfortably under Gemini inline_data limits.
+  var MAX_BYTES = 95 * 1024 * 1024;
+  var pendingFile = null;
+
+  function yield_(){ return new Promise(function (r) { setTimeout(r, 0); }); }
+  function fmtBytes(n){
+    if (n < 1024) return n + " B";
+    if (n < 1024*1024) return (n/1024).toFixed(1) + " KB";
+    return (n/1024/1024).toFixed(1) + " MB";
+  }
+  function guessMime(name){
+    var ext = (name.split(".").pop() || "").toLowerCase();
+    return ({
+      mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav",
+      ogg: "audio/ogg", flac: "audio/flac", aac: "audio/aac",
+      mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm",
+      mpeg: "audio/mpeg"
+    })[ext] || "application/octet-stream";
+  }
+
+  var uploadzone = $("#uploadzone"),
+      audiofile = $("#audiofile");
+
+  function setPendingFile(file){
+    if (!file) { pendingFile = null; renderUploadZone(); return; }
+    if (file.size > MAX_BYTES) {
+      toast("File too large (" + fmtBytes(file.size) + " \u2014 max ~95MB). Try a shorter clip or compress first.");
+      audiofile.value = "";
+      return;
+    }
+    pendingFile = file;
+    renderUploadZone();
+  }
+  function renderUploadZone(){
+    if (!pendingFile) {
+      uploadzone.classList.remove("has-file");
+      uploadzone.innerHTML =
+        '<div class="pick">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
+        'Choose audio or video file</div>' +
+        '<div class="hint">mp3 \u00b7 m4a \u00b7 wav \u00b7 mp4 \u00b7 mov \u00b7 webm \u2014 up to ~9.5 hrs</div>';
+      return;
+    }
+    uploadzone.classList.add("has-file");
+    uploadzone.innerHTML =
+      '<div class="row"><div class="name">' + esc(pendingFile.name) + '</div>' +
+      '<button class="x" id="filex" type="button" aria-label="Remove file">\u00d7</button></div>' +
+      '<div class="size">' + fmtBytes(pendingFile.size) +
+      (pendingFile.type ? ' \u00b7 ' + esc(pendingFile.type) : '') + '</div>';
+    $("#filex").addEventListener("click", function (e) {
+      e.stopPropagation();
+      audiofile.value = "";
+      setPendingFile(null);
+      chk();
+    });
+  }
+  uploadzone.addEventListener("click", function () { if (!pendingFile) audiofile.click(); });
+  uploadzone.addEventListener("keydown", function (e) {
+    if (!pendingFile && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); audiofile.click(); }
+  });
+  audiofile.addEventListener("change", function () { setPendingFile(audiofile.files[0] || null); chk(); });
+  ["dragenter", "dragover"].forEach(function (ev) {
+    uploadzone.addEventListener(ev, function (e) { e.preventDefault(); uploadzone.classList.add("dragover"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    uploadzone.addEventListener(ev, function (e) { e.preventDefault(); uploadzone.classList.remove("dragover"); });
+  });
+  uploadzone.addEventListener("drop", function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) { audiofile.files = e.dataTransfer.files; setPendingFile(f); chk(); }
+  });
+
+  function fileToBase64(file){
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () {
+        var s = String(r.result);
+        var i = s.indexOf(",");
+        resolve(i >= 0 ? s.slice(i + 1) : s);
+      };
+      r.onerror = function () { reject(new Error("Could not read file")); };
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function transcribeWithGemini(file, onPhase){
+    var key = loadSettings().geminiKey;
+    if (!key) throw new Error("No Gemini API key \u2014 open Settings to add one");
+
+    onPhase("Reading");
+    await yield_();
+    var b64 = await fileToBase64(file);
+
+    onPhase("Uploading to Gemini");
+    await yield_();
+    var mime = file.type || guessMime(file.name);
+    var url = GEMINI_ENDPOINT + "?key=" + encodeURIComponent(key);
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: TRANSCRIBE_PROMPT },
+            { inline_data: { mime_type: mime, data: b64 } }
+          ]
+        }],
+        generationConfig: { temperature: 0.1 }
+      })
+    });
+    if (!res.ok) {
+      var body = "";
+      try { body = await res.text(); } catch (e) {}
+      if (res.status === 400) throw new Error("Gemini rejected the request \u2014 check key + file type");
+      if (res.status === 401 || res.status === 403) throw new Error("API key rejected \u2014 open Settings");
+      if (res.status === 413 || /too large/i.test(body)) throw new Error("File too large for Gemini");
+      if (res.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
+      throw new Error("Gemini error " + res.status + ": " + body.slice(0, 120));
+    }
+    onPhase("Transcribing");
+    var json = await res.json();
+    var text = json && json.candidates && json.candidates[0] &&
+               json.candidates[0].content && json.candidates[0].content.parts &&
+               json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text;
+    if (!text) throw new Error("Empty response from Gemini");
+    return text;
+  }
 
   // theme toggle
   $("#theme").addEventListener("click",function(){
@@ -640,8 +945,11 @@
   $("#clearq").addEventListener("click",function(){q.value="";search();q.focus();});
   var deb;q.addEventListener("input",function(){clearTimeout(deb);deb=setTimeout(search,90);});
   document.addEventListener("keydown",function(e){
-    if(e.key==="Escape")closeModal();
-    if(e.key==="/"&&document.activeElement!==q&&document.activeElement!==mtext&&document.activeElement!==mtitle){
+    if(e.key==="Escape"){
+      if (settingscrim.classList.contains("open")) closeSettings();
+      else closeModal();
+    }
+    if(e.key==="/"&&document.activeElement!==q&&document.activeElement!==mtext&&document.activeElement!==mtitle&&document.activeElement!==gemkey){
       e.preventDefault();q.focus();}
   });
 
