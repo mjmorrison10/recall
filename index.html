@@ -370,7 +370,18 @@
       enabled:["apogee","sample"], bin:[]
     };
   }
-  function save(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
+  // Returns true on success, false on quota error. Toast surfaces the failure
+  // so silent localStorage quota issues can't masquerade as "the import failed".
+  function save(){
+    try {
+      localStorage.setItem(LS, JSON.stringify(state));
+      return true;
+    } catch(e) {
+      toast("Save failed — local storage full. Remove a source and retry.");
+      console.error("recall save error:", e);
+      return false;
+    }
+  }
 
   var $=function(s){return document.querySelector(s)};
   var q=$("#q"),results=$("#results"),chips=$("#chips"),count=$("#count"),
@@ -536,16 +547,67 @@
   function openModal(){scrim.classList.add("open");mtitle.value="";mtext.value="";msave.disabled=true;
     setTimeout(function(){mtitle.focus()},40);}
   function closeModal(){scrim.classList.remove("open");}
-  function chk(){msave.disabled=!(mtitle.value.trim()&&parse(mtext.value).length);}
+  // Cheap check on every keystroke — real parse happens at save time.
+  // (Previously parse() ran on every input event, freezing the tab on hour-long transcripts.)
+  function chk(){
+    msave.disabled = !(mtitle.value.trim() && mtext.value.trim());
+  }
   mtitle.addEventListener("input",chk);mtext.addEventListener("input",chk);
   $("#mcancel").addEventListener("click",closeModal);
   scrim.addEventListener("click",function(e){if(e.target===scrim)closeModal();});
-  msave.addEventListener("click",function(){
-    var segs=parse(mtext.value);if(!segs.length)return;
-    var id=uid();
-    state.sources.push({id:id,title:mtitle.value.trim(),segments:segs});
-    state.enabled.push(id);save();renderChips();search();closeModal();
-    toast(segs.length+" moments added");
+  // Chunked parse — yields to the browser every 500 lines so the UI stays
+  // responsive on hour-long transcripts instead of locking the main thread.
+  function parseChunked(raw, onProgress){
+    return new Promise(function(resolve){
+      var lines = raw.split("\n");
+      var CHUNK = 500;
+      var out = [];
+      var i = 0;
+      function step(){
+        var end = Math.min(i + CHUNK, lines.length);
+        for(; i < end; i++){
+          var ln = lines[i].trim(); if(!ln) continue;
+          var m = ln.match(/^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+(.*)$/);
+          if(m){ out.push({t:norm(m[1]), sec:toSec(m[1]),
+                           text:m[2].replace(/\*\*/g,"").replace(/^\w+:\s*/,"").trim()}); }
+          else if(out.length){ out[out.length-1].text += " "+ln.replace(/\*\*/g,""); }
+        }
+        if(onProgress) onProgress(i, lines.length);
+        if(i < lines.length){
+          setTimeout(step, 0);
+        } else {
+          resolve(out);
+        }
+      }
+      step();
+    });
+  }
+
+  msave.addEventListener("click", async function(){
+    msave.disabled = true;
+    var origLabel = msave.textContent;
+    try {
+      msave.textContent = "Parsing…";
+      var segs = await parseChunked(mtext.value, function(i, total){
+        msave.textContent = "Parsing… " + i + "/" + total + " lines";
+      });
+      if(!segs.length){ toast("No timecoded lines found"); return; }
+
+      var id = uid();
+      state.sources.push({id:id, title:mtitle.value.trim(), segments:segs});
+      state.enabled.push(id);
+      save();
+      renderChips();
+      search();
+      closeModal();
+      toast(segs.length + " moments added");
+    } catch(e) {
+      toast("Import failed: " + (e && e.message || "unknown error"));
+      console.error("recall import error:", e);
+    } finally {
+      msave.disabled = false;
+      msave.textContent = origLabel;
+    }
   });
 
   // theme toggle
