@@ -7,11 +7,13 @@
  *   - If both cache and network fail, fall back to the cached index.html so
  *     the app still launches from a cold offline state.
  */
-var CACHE = 'recall-shell-v4';
+var CACHE = 'recall-shell-v5';
 var APP_SHELL = [
   './',
   './index.html',
   './howto.html',
+  './style.css',
+  './app.js',
   './manifest.json',
   './logo.png',
   './icons/icon-180.png',
