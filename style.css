@@ -126,16 +126,28 @@
   .meta{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin-top:11px;
     font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:.02em}
   .count b{color:var(--gold);font-weight:700}
+  /* Source chips — active state is gold-filled, inactive is clearly "off"
+     (dimmed + dashed border) so you can tell at a glance which sources
+     contribute to the current search. Hover on inactive lifts the dim
+     but never fully activates, so it never gets confused with active. */
   .chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);
     border:1px solid var(--border);border-radius:20px;padding:5px 11px;cursor:pointer;
-    font-family:var(--mono);font-size:11.5px;color:var(--muted);user-select:none;transition:.12s}
-  .chip:hover{border-color:var(--faint);color:var(--ink)}
-  .chip.on{color:var(--ink);border-color:var(--gold);background:var(--gold-ghost)}
-  .chip .sw{width:8px;height:8px;border-radius:2px;background:var(--faint)}
-  .chip.on .sw{background:var(--gold)}
-  .chip .n{color:var(--faint)}
-  .chip.on .n{color:var(--gold-deep)}
-  .chip .x{color:var(--faint);font-size:13px;margin-left:1px}
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);user-select:none;
+    transition:.12s;opacity:.55;border-style:dashed}
+  .chip:hover{opacity:.85;border-color:var(--faint);color:var(--ink)}
+  .chip.on{opacity:1;color:var(--ink);border-color:var(--gold);
+    background:var(--gold-ghost);border-style:solid;
+    box-shadow:0 0 0 1px var(--gold-ghost)}
+  .chip.on:hover{opacity:1;background:var(--gold-ghost);border-color:var(--gold)}
+  .chip .sw{width:8px;height:8px;border-radius:2px;background:var(--faint);
+    transition:.15s}
+  .chip:hover .sw{background:var(--brand)}
+  .chip.on .sw{background:var(--gold);box-shadow:0 0 0 3px var(--gold-ghost)}
+  .chip .n{color:var(--faint);transition:.15s;font-weight:400}
+  .chip:hover .n{color:var(--brand)}
+  .chip.on .n{color:var(--gold-deep);font-weight:700}
+  .chip .x{color:var(--faint);font-size:13px;margin-left:1px;opacity:.7;transition:.12s}
+  .chip:hover .x{opacity:1}
   .chip .x:hover{color:var(--gold)}
   .addsrc{border-style:dashed}
 
