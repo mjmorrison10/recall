@@ -859,7 +859,7 @@
               audioPart
             ]
           }],
-          generationConfig: { temperature: 0.1 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 16000 }
         })
       });
       if (!res.ok) {
@@ -872,10 +872,14 @@
         throw new Error("Gemini error " + res.status + ": " + body.slice(0, 120));
       }
       var json = await res.json();
-      var text = json && json.candidates && json.candidates[0] &&
-                 json.candidates[0].content && json.candidates[0].content.parts &&
-                 json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text;
+      var candidate = json && json.candidates && json.candidates[0];
+      var text = candidate && candidate.content && candidate.content.parts &&
+                 candidate.content.parts[0] && candidate.content.parts[0].text;
       if (!text) throw new Error("Empty response from Gemini");
+      var finishReason = candidate && candidate.finishReason;
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error("Audio too long \u2014 transcript was truncated at the token limit. Try splitting into smaller segments.");
+      }
       return text;
     } finally {
       if (uploadedFileName) await deleteFile(uploadedFileName, key);
