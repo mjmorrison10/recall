@@ -123,7 +123,18 @@
   <div class="modal" role="dialog" aria-modal="true">
     <h2>Settings</h2>
     <div class="mbody">
-      <div><label>Gemini API key</label>
+      <div>
+        <label>AI provider</label>
+        <div class="providerrow">
+          <label class="radiopill"><input type="radio" name="provider" id="providerGemini" value="gemini" checked>Gemini <span class="pilltag">default</span></label>
+          <label class="radiopill"><input type="radio" name="provider" id="providerOpenrouter" value="openrouter">OpenRouter <span class="pilltag">pick your model</span></label>
+        </div>
+        <p class="hint" style="margin-top:8px">Gemini is the easy default and the only option with a
+          large-file upload path for long recordings. OpenRouter lets you pick any text model, but caps out
+          around ~15MB per file with no resumable upload.</p>
+      </div>
+
+      <div id="geminiFields"><label>Gemini API key</label>
         <div class="keyrow">
           <input id="gemkey" type="password" placeholder="AIza…" autocomplete="off" spellcheck="false">
           <button id="keyshow" type="button">show</button>
@@ -132,6 +143,25 @@
         <p class="hint keyhint" style="margin-top:8px">Your key is stored only in this browser's
           localStorage and sent only to Google Gemini for transcription.
           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key at aistudio.google.com</a>.</p>
+      </div>
+
+      <div id="openrouterFields" class="hidden"><label>OpenRouter API key</label>
+        <div class="keyrow">
+          <input id="orkey" type="password" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
+          <button id="orkeyshow" type="button">show</button>
+        </div>
+        <div class="keystatus empty" id="orkeystatus">No key saved.</div>
+        <label style="margin-top:12px;display:block">Model</label>
+        <input id="ormodel" type="text" list="ormodels" placeholder="google/gemini-2.0-flash-001" autocomplete="off" spellcheck="false">
+        <datalist id="ormodels">
+          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash — media-capable</option>
+          <option value="openai/gpt-4o-mini">GPT-4o mini — media-capable</option>
+          <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku — text only</option>
+          <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — text only</option>
+        </datalist>
+        <p class="hint keyhint" style="margin-top:8px">Stored only in this browser's localStorage and sent
+          only to OpenRouter. No large-file upload like Gemini's — long recordings need Gemini.
+          <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a key at openrouter.ai</a>.</p>
       </div>
 
       <div class="divider">DATA</div>
@@ -158,7 +188,7 @@
       </div>
     </div>
     <div class="mfoot">
-      <button class="btn ghost" id="keyclear">Clear</button>
+      <button class="btn ghost" id="keyclear">Clear this key</button>
       <button class="btn ghost" id="keycancel">Cancel</button>
       <button class="btn primary" id="keysave">Save</button>
     </div>
@@ -167,6 +197,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="llm.js"></script>
 <script src="app.js"></script>
 
 </body>
