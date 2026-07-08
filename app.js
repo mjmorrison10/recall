@@ -1,6 +1,13 @@
-(function(){
+(async function(){
   "use strict";
   var LS="recall_state_v2";
+  // IndexedDB replaces localStorage for the library. Browser quota is ~60% of
+  // disk vs localStorage's 5-10MB, so a 50-episode back catalog now fits.
+  // API key (LS_SETTINGS) stays in localStorage — small, never grows.
+  var DB_NAME="recall";
+  var DB_VERSION=1;
+  var STORE_NAME="library";
+  var DB_KEY="current";
 
   var SEED_APOGEE=`[00:00:17] So speaking of diving in, what's the 30,000-foot view of who Rome Scurry is and what you're all about?
 [00:00:27] Who I am is a mentor, a leader, somebody who really cares about other people, and somebody who puts protection at the top of my priority.
@@ -68,9 +75,54 @@
   }
   function uid(){return Math.random().toString(36).slice(2,9);}
 
-  var state=load();
-  function load(){
-    try{var s=JSON.parse(localStorage.getItem(LS));if(s&&s.sources)return s;}catch(e){}
+  // === IndexedDB persistence ===
+  // Single object store, single record. Same shape as the old localStorage
+  // blob so migration is just JSON.parse → JSON.stringify on the value.
+  function openDB(){
+    return new Promise(function(resolve, reject){
+      var req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)){
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  }
+  function dbOp(mode, value){
+    return openDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(STORE_NAME, mode);
+        var store = tx.objectStore(STORE_NAME);
+        var req = (mode === "readwrite") ? store.put(value, DB_KEY) : store.get(DB_KEY);
+        req.onsuccess = function(){ resolve(req.result); };
+        req.onerror = function(){ reject(req.error); };
+      });
+    });
+  }
+  async function loadState(){
+    // 1) Try IDB first
+    try {
+      var fromIDB = await dbOp("readonly");
+      if (fromIDB && fromIDB.sources) return fromIDB;
+    } catch(e) { console.warn("recall: IDB read failed", e); }
+    // 2) Migrate from legacy localStorage on first launch
+    try {
+      var raw = localStorage.getItem(LS);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.sources) {
+          try {
+            await dbOp("readwrite", parsed);
+            localStorage.removeItem(LS);
+          } catch(e) { console.warn("recall: IDB migration write failed", e); }
+          return parsed;
+        }
+      }
+    } catch(e) { console.warn("recall: localStorage read failed", e); }
+    // 3) First-time user — seed data
     return {
       sources:[
         {id:"apogee",title:"Apogee — Rome Scurry interview",segments:parse(SEED_APOGEE)},
@@ -79,16 +131,22 @@
       enabled:["apogee","sample"], bin:[]
     };
   }
-  // Returns true on success, false on quota error. Toast surfaces the failure
-  // so silent localStorage quota issues can't masquerade as "the import failed".
-  function save(){
+  var state = await loadState();
+  // Async save: IDB first, falls back to localStorage on quota/permission.
+  // All callers fire-and-forget — IDB writes are atomic and fast.
+  async function save(){
     try {
-      localStorage.setItem(LS, JSON.stringify(state));
+      await dbOp("readwrite", state);
       return true;
     } catch(e) {
-      toast("Save failed — local storage full. Remove a source and retry.");
-      console.error("recall save error:", e);
-      return false;
+      try {
+        localStorage.setItem(LS, JSON.stringify(state));
+        return true;
+      } catch(e2) {
+        toast("Save failed — storage full. Remove a source and retry.");
+        console.error("recall save error:", e2);
+        return false;
+      }
     }
   }
 
@@ -855,7 +913,7 @@
   renderChips();renderBin();search();
 
   // Register service worker so the app shell caches for offline use after the
-  // first visit. localStorage stays as-is — the SW only handles asset caching.
+  // first visit. IndexedDB stays as-is — the SW only handles asset caching.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("./sw.js").catch(function (err) {
@@ -863,4 +921,14 @@
       });
     });
   }
-})();
+}).catch(function(err){
+  // If init fails (IDB unavailable, schema broken, etc.), show a clear error
+  // instead of a blank page so the user knows what happened and what to try.
+  console.error("recall: init failed", err);
+  document.body.innerHTML =
+    '<div style="padding:40px;color:#E6EAF0;background:#0E1116;font-family:-apple-system,sans-serif;min-height:100vh">' +
+    '<h1 style="margin:0 0 12px">RECALL couldn\u2019t start</h1>' +
+    '<p style="color:#8A94A6;max-width:60ch">' + (err && err.message || err) + '</p>' +
+    '<p style="color:#8A94A6;max-width:60ch">Try clearing browser storage for this site and reloading. Your library export (JSON) is your safety net \u2014 Settings \u2192 DATA \u2192 Export library.</p>' +
+    '</div>';
+});
