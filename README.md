@@ -16,11 +16,22 @@ The best clips aren't one clean 60-second section. They're built — a line here
 
 1. **Search** — type a word or phrase. Results come back instantly from every source you've loaded, timecoded and highlighted.
 2. **Toggle sources** — switch individual transcripts on/off to narrow the hunt.
-3. **Add a source** — paste any timestamped transcript. Lines starting with a timecode (`[00:01:23]`, `1:23`, or `01:23:45`) become searchable moments.
+3. **Add a source** — paste any timestamped transcript, or upload an audio/video file and let AI
+   transcribe it for you (adds an API key in Settings — see below). Lines starting with a timecode
+   (`[00:01:23]`, `1:23`, or `01:23:45`) become searchable moments.
 4. **Build a concept** — hit `+ BIN` on the moments you want. Stack them across sources.
 5. **Export** — copy a clean shot list (timecodes + lines + source) and take it into your editor.
 
 Your library is saved locally in your browser — it grows every time you add a source, and nothing leaves your device.
+
+## AI transcription
+
+**Gemini is the default** — add a free API key in Settings and file uploads get transcribed
+automatically. Power users can switch to **OpenRouter** instead and pick any text model. They aren't
+equivalent: Gemini has a resumable upload path for large recordings (up to 2GB); OpenRouter is an
+OpenAI-compatible text API with no equivalent — it inlines media directly, capping out around
+~15MB per file with no resumable upload. So long recordings need Gemini; short ones work on either.
+Your key is stored only in this browser's localStorage and sent only to whichever provider you pick.
 
 ## Run it
 

@@ -105,6 +105,14 @@
   .keystatus.set{color:var(--pos)}
   .keystatus.empty{color:var(--faint)}
 
+  .hidden{display:none}
+  .providerrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .radiopill{display:flex;align-items:center;gap:7px;background:var(--ground);border:1px solid var(--border);
+    border-radius:9px;padding:9px 13px;cursor:pointer;font-size:13px;color:var(--ink)}
+  .radiopill:has(input:checked){border-color:var(--gold);background:var(--gold-ghost)}
+  .radiopill input{margin:0}
+  .radiopill .pilltag{color:var(--faint);font-family:var(--mono);font-size:10px;letter-spacing:.04em}
+
   .lede{color:var(--muted);font-size:13.5px;max-width:64ch;margin:10px 0 20px;line-height:1.6}
   .lede b{color:var(--ink);font-weight:600}
 

@@ -402,8 +402,8 @@
     try {
       var segs, source;
       if (pendingFile) {
-        // === Transcription flow: audio file → Gemini → [HH:MM:SS] text → parse ===
-        var raw = await transcribeWithGemini(pendingFile, function (label) {
+        // === Transcription flow: audio file → provider → [HH:MM:SS] text → parse ===
+        var raw = await transcribe(pendingFile, function (label) {
           msave.textContent = label + "…";
         });
         msave.textContent = "Parsing…";
@@ -411,7 +411,7 @@
         segs = await parseChunked(raw, function (i, total) {
           msave.textContent = "Parsing… " + i + "/" + total;
         });
-        if (!segs.length) { toast("No timecoded lines from Gemini"); return; }
+        if (!segs.length) { toast("No timecoded lines in the response"); return; }
         source = "transcript from " + pendingFile.name;
       } else {
         // === Existing paste flow ===
@@ -443,7 +443,7 @@
     }
   });
 
-  // === Settings (BYO Gemini API key) ===
+  // === Settings (BYO API key, Gemini or OpenRouter) ===
   var LS_SETTINGS = "recall_settings_v1";
   function loadSettings(){
     try { var s = JSON.parse(localStorage.getItem(LS_SETTINGS)); return s || {}; }
@@ -455,48 +455,109 @@
   }
 
   var settingscrim = $("#settingscrim"),
-      gemkey = $("#gemkey"),
-      keystatus = $("#keystatus"),
-      keyshow = $("#keyshow");
+      gemkey = $("#gemkey"), keystatus = $("#keystatus"), keyshow = $("#keyshow"),
+      orkey = $("#orkey"), orkeystatus = $("#orkeystatus"), orkeyshow = $("#orkeyshow"),
+      ormodel = $("#ormodel"),
+      geminiFields = $("#geminiFields"), openrouterFields = $("#openrouterFields"),
+      providerGemini = $("#providerGemini"), providerOpenrouter = $("#providerOpenrouter");
+
+  // Reads current settings into the { provider, geminiKey, openrouterKey,
+  // openrouterModel } shape llm.js (window.LLMProvider) expects.
+  function getProviderConfig(){
+    var s = loadSettings();
+    return {
+      provider: s.provider === "openrouter" ? "openrouter" : "gemini",
+      geminiKey: s.geminiKey || "",
+      openrouterKey: s.openrouterKey || "",
+      openrouterModel: s.openrouterModel || "google/gemini-2.0-flash-001",
+    };
+  }
+
+  function keyStatusText(k){ return k ? "Key saved (" + k.slice(0,4) + "…" + k.slice(-4) + ")" : "No key saved."; }
+  function showProviderFields(provider){
+    geminiFields.classList.toggle("hidden", provider !== "gemini");
+    openrouterFields.classList.toggle("hidden", provider !== "openrouter");
+  }
 
   function openSettings(){
     settingscrim.classList.add("open");
-    var k = loadSettings().geminiKey || "";
-    gemkey.value = k;
-    keystatus.textContent = k ? "Key saved (" + k.slice(0,4) + "…" + k.slice(-4) + ")" : "No key saved.";
-    keystatus.className = "keystatus " + (k ? "set" : "empty");
+    var s = loadSettings();
+    var provider = s.provider === "openrouter" ? "openrouter" : "gemini";
+    providerGemini.checked = provider === "gemini";
+    providerOpenrouter.checked = provider === "openrouter";
+    showProviderFields(provider);
+
+    gemkey.value = s.geminiKey || "";
+    keystatus.textContent = keyStatusText(s.geminiKey);
+    keystatus.className = "keystatus " + (s.geminiKey ? "set" : "empty");
     gemkey.type = "password";
     keyshow.textContent = "show";
-    setTimeout(function () { gemkey.focus(); gemkey.select(); }, 40);
+
+    orkey.value = s.openrouterKey || "";
+    orkeystatus.textContent = keyStatusText(s.openrouterKey);
+    orkeystatus.className = "keystatus " + (s.openrouterKey ? "set" : "empty");
+    orkey.type = "password";
+    orkeyshow.textContent = "show";
+    ormodel.value = s.openrouterModel || "google/gemini-2.0-flash-001";
+
+    setTimeout(function () { (provider === "gemini" ? gemkey : orkey).focus(); }, 40);
   }
   function closeSettings(){ settingscrim.classList.remove("open"); }
+
+  providerGemini.addEventListener("change", function () { if (providerGemini.checked) showProviderFields("gemini"); });
+  providerOpenrouter.addEventListener("change", function () { if (providerOpenrouter.checked) showProviderFields("openrouter"); });
 
   keyshow.addEventListener("click", function () {
     if (gemkey.type === "password") { gemkey.type = "text"; keyshow.textContent = "hide"; }
     else { gemkey.type = "password"; keyshow.textContent = "show"; }
   });
+  orkeyshow.addEventListener("click", function () {
+    if (orkey.type === "password") { orkey.type = "text"; orkeyshow.textContent = "hide"; }
+    else { orkey.type = "password"; orkeyshow.textContent = "show"; }
+  });
+
   $("#keysave").addEventListener("click", function () {
-    var k = gemkey.value.trim();
-    if (!k) { toast("Enter a key first"); return; }
-    if (!/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) {
+    var gk = gemkey.value.trim();
+    var ok = orkey.value.trim();
+    if (gk && !/^AIza[0-9A-Za-z_\-]{20,}$/.test(gk)) {
       toast("That doesn't look like a Gemini API key");
       return;
     }
-    if (saveSettingsObj({ geminiKey: k })) {
-      keystatus.textContent = "Key saved (" + k.slice(0,4) + "…" + k.slice(-4) + ")";
-      keystatus.className = "keystatus set";
-      toast("API key saved");
+    if (ok && ok.length < 20) {
+      toast("That doesn't look like an OpenRouter API key");
+      return;
+    }
+    var provider = providerOpenrouter.checked ? "openrouter" : "gemini";
+    if (provider === "gemini" && !gk) { toast("Enter a Gemini key first"); return; }
+    if (provider === "openrouter" && !ok) { toast("Enter an OpenRouter key first"); return; }
+    var saved = saveSettingsObj({
+      provider: provider,
+      geminiKey: gk,
+      openrouterKey: ok,
+      openrouterModel: ormodel.value.trim() || "google/gemini-2.0-flash-001",
+    });
+    if (saved) {
+      toast("Settings saved");
       closeSettings();
     } else {
-      toast("Couldn't save key (storage full?)");
+      toast("Couldn't save settings (storage full?)");
     }
   });
   $("#keyclear").addEventListener("click", function () {
-    gemkey.value = "";
-    localStorage.removeItem(LS_SETTINGS);
-    keystatus.textContent = "No key saved.";
-    keystatus.className = "keystatus empty";
-    toast("API key cleared");
+    var s = loadSettings();
+    if (providerOpenrouter.checked) {
+      orkey.value = "";
+      s.openrouterKey = "";
+      orkeystatus.textContent = "No key saved.";
+      orkeystatus.className = "keystatus empty";
+    } else {
+      gemkey.value = "";
+      s.geminiKey = "";
+      keystatus.textContent = "No key saved.";
+      keystatus.className = "keystatus empty";
+    }
+    saveSettingsObj(s);
+    toast("Key cleared");
   });
   $("#keycancel").addEventListener("click", closeSettings);
   settingscrim.addEventListener("click", function (e) { if (e.target === settingscrim) closeSettings(); });
@@ -643,8 +704,7 @@
     libactions.style.display = "none";
   });
 
-  // === Upload + Gemini transcription ===
-  var GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  // === Upload + transcription (provider-aware: Gemini or OpenRouter) ===
   var TRANSCRIBE_PROMPT = [
     "Transcribe the following audio VERBATIM \u2014 no summarizing, no paraphrasing, no commentary.",
     "",
@@ -660,17 +720,12 @@
     "- Do NOT include timestamps in any format other than [HH:MM:SS].",
     "- Output ONLY the timestamped transcript lines."
   ].join("\n");
-  // Two size limits in play:
-  //   INLINE_MAX_BYTES — Gemini inline_data total request cap is 20MB. 14MB raw
-  //     audio → ~19MB base64 → safely under 20MB with room for the prompt.
-  //     Files at or below this size use the inline path (one round-trip).
-  //   MAX_BYTES — Gemini Files API hard cap is 2GB per file. Anything above
-  //     INLINE_MAX_BYTES but at or below MAX_BYTES uploads via Files API.
-  //     Anything above MAX_BYTES is rejected outright.
-  var INLINE_MAX_BYTES = 14 * 1024 * 1024;
+  // MAX_BYTES is the file-picker's UI-level ceiling — Gemini's Files API cap
+  // (2GB), the largest either provider could ever handle here. The actual
+  // per-provider limit is enforced inside llm.js: OpenRouter's much smaller
+  // inline-only cap surfaces as a clear error at transcribe time, not here,
+  // since that depends on which provider is currently selected.
   var MAX_BYTES = 2 * 1024 * 1024 * 1024;
-  var FILES_API_UPLOAD = "https://generativelanguage.googleapis.com/upload/v1beta/files";
-  var FILES_API_BASE = "https://generativelanguage.googleapis.com/v1beta/files";
   var pendingFile = null;
 
   function yield_(){ return new Promise(function (r) { setTimeout(r, 0); }); }
@@ -678,15 +733,6 @@
     if (n < 1024) return n + " B";
     if (n < 1024*1024) return (n/1024).toFixed(1) + " KB";
     return (n/1024/1024).toFixed(1) + " MB";
-  }
-  function guessMime(name){
-    var ext = (name.split(".").pop() || "").toLowerCase();
-    return ({
-      mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav",
-      ogg: "audio/ogg", flac: "audio/flac", aac: "audio/aac",
-      mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm",
-      mpeg: "audio/mpeg"
-    })[ext] || "application/octet-stream";
   }
 
   var uploadzone = $("#uploadzone"),
@@ -741,151 +787,22 @@
     if (f) { audiofile.files = e.dataTransfer.files; setPendingFile(f); chk(); }
   });
 
-  function fileToBase64(file){
-    return new Promise(function (resolve, reject) {
-      var r = new FileReader();
-      r.onload = function () {
-        var s = String(r.result);
-        var i = s.indexOf(",");
-        resolve(i >= 0 ? s.slice(i + 1) : s);
-      };
-      r.onerror = function () { reject(new Error("Could not read file")); };
-      r.readAsDataURL(file);
+  // File mime drives which OpenRouter content part llm.js uses, and
+  // whether OpenRouter is even eligible (video is Gemini-only there).
+  function mediaKindOf(file){
+    var mime = file.type || "";
+    return mime.indexOf("video/") === 0 ? "video" : "audio";
+  }
+
+  async function transcribe(file, onPhase){
+    return window.LLMProvider.generateFromMedia(getProviderConfig(), {
+      file: file,
+      prompt: TRANSCRIBE_PROMPT,
+      maxTokens: 16000,
+      mediaKind: mediaKindOf(file),
+      onPhase: onPhase,
     });
   }
-
-  // === Gemini Files API helpers (for files > INLINE_MAX_BYTES) ===
-  // Resumable upload protocol: two-step (start, then upload+finalize).
-  // Returns the File object: { name, uri, state, ... }
-  async function uploadToFilesAPI(file, mime, apiKey){
-    var startRes = await fetch(FILES_API_UPLOAD + "?key=" + encodeURIComponent(apiKey), {
-      method: "POST",
-      headers: {
-        "X-Goog-Upload-Protocol": "resumable",
-        "X-Goog-Upload-Command": "start",
-        "X-Goog-Upload-Header-Content-Length": String(file.size),
-        "X-Goog-Upload-Header-Content-Type": mime,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ file: { display_name: file.name } })
-    });
-    if (!startRes.ok) {
-      if (startRes.status === 401 || startRes.status === 403) throw new Error("API key rejected \u2014 open Settings");
-      if (startRes.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
-      if (startRes.status === 413) throw new Error("File too large for Gemini");
-      throw new Error("Upload start failed (HTTP " + startRes.status + ")");
-    }
-    var uploadUrl = startRes.headers.get("X-Goog-Upload-URL");
-    if (!uploadUrl) throw new Error("No upload URL returned by Gemini");
-    var uploadRes = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        "X-Goog-Upload-Command": "upload, finalize",
-        "X-Goog-Upload-Offset": "0",
-        "Content-Length": String(file.size)
-      },
-      body: file
-    });
-    if (!uploadRes.ok) {
-      throw new Error("File upload failed (HTTP " + uploadRes.status + ")");
-    }
-    var data = await uploadRes.json();
-    return data && data.file ? data.file : data;
-  }
-  // Poll the file metadata until state becomes ACTIVE (or FAILED / timeout).
-  async function waitForFileActive(fileName, apiKey){
-    var deadline = Date.now() + 120000;  // 2 min ceiling
-    var url = FILES_API_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey);
-    while (Date.now() < deadline) {
-      var r = await fetch(url);
-      if (!r.ok) throw new Error("File status check failed (HTTP " + r.status + ")");
-      var f = await r.json();
-      if (f.state === "ACTIVE") return f;
-      if (f.state === "FAILED") throw new Error("Gemini could not process this file");
-      await new Promise(function (resolve) { setTimeout(resolve, 2000); });
-    }
-    throw new Error("File processing timed out (2 min)");
-  }
-  // Best-effort cleanup — files auto-expire after 48h anyway.
-  async function deleteFile(fileName, apiKey){
-    try {
-      await fetch(FILES_API_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey), { method: "DELETE" });
-    } catch (e) { /* silent */ }
-  }
-
-  async function transcribeWithGemini(file, onPhase){
-    var key = loadSettings().geminiKey;
-    if (!key) throw new Error("No Gemini API key \u2014 open Settings to add one");
-
-    var mime = file.type || guessMime(file.name);
-    var useFilesAPI = file.size > INLINE_MAX_BYTES;
-    var audioPart, uploadedFileName = null;
-
-    if (useFilesAPI) {
-      // === Files API path: upload to Google's CDN, then reference by URI ===
-      onPhase("Uploading to Gemini");
-      await yield_();
-      var uploaded = await uploadToFilesAPI(file, mime, key);
-      uploadedFileName = uploaded.name;
-      var fileUri = uploaded.uri;
-      if (!fileUri) throw new Error("File upload didn't return a URI");
-
-      onPhase("Processing");
-      await yield_();
-      await waitForFileActive(uploadedFileName, key);
-
-      audioPart = { file_data: { file_uri: fileUri, mime_type: mime } };
-    } else {
-      // === Inline path: base64-encode the file and POST it directly ===
-      onPhase("Reading");
-      await yield_();
-      var b64 = await fileToBase64(file);
-      onPhase("Uploading to Gemini");
-      await yield_();
-      audioPart = { inline_data: { mime_type: mime, data: b64 } };
-    }
-
-    onPhase("Transcribing");
-    await yield_();
-    try {
-      var url = GEMINI_ENDPOINT + "?key=" + encodeURIComponent(key);
-      var res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: TRANSCRIBE_PROMPT },
-              audioPart
-            ]
-          }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 16000 }
-        })
-      });
-      if (!res.ok) {
-        var body = "";
-        try { body = await res.text(); } catch (e) {}
-        if (res.status === 400) throw new Error("Gemini rejected the request \u2014 check key + file type");
-        if (res.status === 401 || res.status === 403) throw new Error("API key rejected \u2014 open Settings");
-        if (res.status === 413 || /too large/i.test(body)) throw new Error("File too large for Gemini");
-        if (res.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
-        throw new Error("Gemini error " + res.status + ": " + body.slice(0, 120));
-      }
-      var json = await res.json();
-      var candidate = json && json.candidates && json.candidates[0];
-      var text = candidate && candidate.content && candidate.content.parts &&
-                 candidate.content.parts[0] && candidate.content.parts[0].text;
-      if (!text) throw new Error("Empty response from Gemini");
-      var finishReason = candidate && candidate.finishReason;
-      if (finishReason === "MAX_TOKENS") {
-        throw new Error("Audio too long \u2014 transcript was truncated at the token limit. Try splitting into smaller segments.");
-      }
-      return text;
-    } finally {
-      if (uploadedFileName) await deleteFile(uploadedFileName, key);
-    }
-  }
-
   // theme toggle
   $("#theme").addEventListener("click",function(){
     var cur=document.documentElement.getAttribute("data-theme");
@@ -925,7 +842,7 @@
       });
     });
   }
-}).catch(function(err){
+})().catch(function(err){
   // If init fails (IDB unavailable, schema broken, etc.), show a clear error
   // instead of a blank page so the user knows what happened and what to try.
   console.error("recall: init failed", err);
