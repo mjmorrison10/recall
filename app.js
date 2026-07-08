@@ -925,7 +925,7 @@
       });
     });
   }
-}).catch(function(err){
+})().catch(function(err){
   // If init fails (IDB unavailable, schema broken, etc.), show a clear error
   // instead of a blank page so the user knows what happened and what to try.
   console.error("recall: init failed", err);
