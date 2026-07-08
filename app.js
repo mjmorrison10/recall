@@ -94,7 +94,8 @@
 
   var $=function(s){return document.querySelector(s)};
   var q=$("#q"),results=$("#results"),chips=$("#chips"),count=$("#count"),
-      binlist=$("#binlist"),bnum=$("#bnum"),exportBtn=$("#export");
+      binlist=$("#binlist"),bnum=$("#bnum"),exportBtn=$("#export"),
+      exportSRTBtn=$("#exportSRT");
 
   function esc(s){return s.replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]});}
   function terms(str){return str.toLowerCase().split(/\s+/).filter(function(w){return w.length});}
@@ -179,6 +180,7 @@
   function renderBin(){
     bnum.textContent=state.bin.length;
     exportBtn.disabled=!state.bin.length;
+    exportSRTBtn.disabled=!state.bin.length;
     if(!state.bin.length){
       binlist.innerHTML='<div class="binempty">Hit <span class="k">+ BIN</span> on any moment to '+
         'start building a clip concept. Stack moments from different sources — that’s where the '+
@@ -246,6 +248,48 @@
   function fallback(txt){var ta=document.createElement("textarea");ta.value=txt;
     document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}
     document.body.removeChild(ta);}
+
+  // SRT export — produces a SubRip subtitle file from the current bin.
+  // Each bin item's end time is the start of the next segment in the same source,
+  // or +30s for the last segment. Subtitle import works in Premiere, CapCut,
+  // DaVinci, and most NLEs — turns RECALL from a search tool into a clip tool.
+  function srtTime(sec){
+    var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60);
+    var s=Math.floor(sec%60), ms=Math.round((sec-Math.floor(sec))*1000);
+    return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+
+           String(s).padStart(2,"0")+","+String(ms).padStart(3,"0");
+  }
+  function binItemRange(b){
+    var s=state.sources.find(function(x){return x.id===b.srcId;});
+    if(!s) return {start:b.sec, end:b.sec+30};
+    for(var i=0;i<s.segments.length;i++){
+      if(s.segments[i].sec===b.sec){
+        var next=s.segments[i+1];
+        return {start:b.sec, end:next?next.sec:b.sec+30};
+      }
+    }
+    return {start:b.sec, end:b.sec+30};
+  }
+  function exportBinSRT(){
+    var lines=[];
+    state.bin.forEach(function(b,i){
+      var r=binItemRange(b);
+      lines.push(String(i+1));
+      lines.push(srtTime(r.start)+" --> "+srtTime(r.end));
+      lines.push(b.text);
+      lines.push("");
+    });
+    var srt=lines.join("\n")+"\n";  // trailing newline for SRT spec compliance
+    var blob=new Blob([srt],{type:"text/plain"});
+    var url=URL.createObjectURL(blob);
+    var stamp=new Date().toISOString().slice(0,10);
+    var a=document.createElement("a");
+    a.href=url; a.download="recall-clips-"+stamp+".srt";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},0);
+    toast("SRT exported ("+state.bin.length+" clip"+(state.bin.length===1?"":"s")+")");
+  }
+  exportSRTBtn.addEventListener("click", exportBinSRT);
 
   var toastT;
   function toast(msg){var el=$("#toast");el.textContent=msg;el.classList.add("show");
@@ -542,7 +586,7 @@
   });
 
   // === Upload + Gemini transcription ===
-  var GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  var GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
   var TRANSCRIBE_PROMPT = [
     "Transcribe the following audio VERBATIM \u2014 no summarizing, no paraphrasing, no commentary.",
     "",
@@ -558,8 +602,10 @@
     "- Do NOT include timestamps in any format other than [HH:MM:SS].",
     "- Output ONLY the timestamped transcript lines."
   ].join("\n");
-  // ~95MB raw = ~127MB base64, comfortably under Gemini inline_data limits.
-  var MAX_BYTES = 95 * 1024 * 1024;
+  // Gemini inline_data total request limit is 20MB (audio + base64 overhead).
+  // 14MB raw → ~19MB base64 → safely under 20MB with room for the prompt.
+  // Larger files need the Files API (out of scope for v1) or client-side chunking.
+  var MAX_BYTES = 14 * 1024 * 1024;
   var pendingFile = null;
 
   function yield_(){ return new Promise(function (r) { setTimeout(r, 0); }); }
@@ -584,7 +630,7 @@
   function setPendingFile(file){
     if (!file) { pendingFile = null; renderUploadZone(); return; }
     if (file.size > MAX_BYTES) {
-      toast("File too large (" + fmtBytes(file.size) + " \u2014 max ~95MB). Try a shorter clip or compress first.");
+      toast("File too large (" + fmtBytes(file.size) + " \u2014 max ~14MB raw). Compress to a lower bitrate, split into shorter segments, or trim silence.");
       audiofile.value = "";
       return;
     }
@@ -598,7 +644,7 @@
         '<div class="pick">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
         'Choose audio or video file</div>' +
-        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to ~9.5 hrs</div>';
+        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to ~14 MB (~15 min)</div>';
       return;
     }
     uploadzone.classList.add("has-file");
