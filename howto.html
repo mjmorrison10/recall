@@ -67,7 +67,7 @@
           <li><b>Upload audio or video</b> — drag in an audio or video file. RECALL sends it to Google Gemini for transcription (requires an API key — see Section 3).</li>
         </ul>
 
-        <div class="note"><b>Audio only is recommended when you can.</b> An hour-long <code>.mp3</code> at 128kbps is roughly 60MB; the same content as <code>.mp4</code> video is 500MB or more. Gemini extracts audio from video anyway, so uploading audio-only gives you the same transcription with a much smaller, faster upload. Best audio formats: <code>.m4a</code>, <code>.mp3</code>, <code>.wav</code>, <code>.opus</code>. File size limit is ~14MB raw (~15 minutes of compressed audio) — Gemini's inline request cap. For longer files, compress to a lower bitrate or split into shorter segments.</div>
+        <div class="note"><b>Audio only is recommended when you can.</b> An hour-long <code>.mp3</code> at 128kbps is roughly 60MB; the same content as <code>.mp4</code> video is 500MB or more. Gemini extracts audio from video anyway, so uploading audio-only gives you the same transcription with a much smaller, faster upload. Best audio formats: <code>.m4a</code>, <code>.mp3</code>, <code>.wav</code>, <code>.opus</code>. File size limit is 2 GB — RECALL automatically uses Gemini's inline path for short clips (≤14 MB) and the Files API for longer audio. The whole back catalog of a podcast fits.</div>
 
         <div class="note muted"><b>Don't have the raw file anymore?</b> If you livestreamed and only have a YouTube URL (no studio mix, no raw recording), use a YouTube downloader to grab the audio-only version, then upload that to RECALL. Recommended: <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener"><b>yt-dlp</b></a> (free, open source) — one-liner: <code>yt-dlp -x --audio-format m4a "https://youtube.com/..."</code>. GUI alternatives: <a href="https://cobalt.tools" target="_blank" rel="noopener">cobalt.tools</a> (clean web-based), or any standard YouTube downloader. Grab the audio, save it locally, then drag it into RECALL.</div>
       </div>
@@ -167,7 +167,7 @@
 
       <div class="step">
         <h3><span class="ord">05</span>Test it</h3>
-        <p>Click <code>+ add source</code>, drag in a 1–2 minute audio clip, hit <code>Add to library</code>. If you get a green toast saying <i>"247 moments added"</i>, you're set. If you get <i>"API key rejected"</i>, the key has a typo — clear it in Settings and paste again carefully.</p>
+        <p>Click <code>+ add source</code>, drag in a 1–2 minute audio clip, hit <code>Add to library</code>. If you get a green toast saying <i>"247 moments added"</i>, you're set. If you get <i>"API key rejected"</i>, the key has a typo — clear it in Settings and paste again carefully. For longer files (a full podcast episode), the same flow works — RECALL automatically uploads via the Files API instead of inline.</p>
       </div>
     </div>
 

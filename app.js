@@ -602,10 +602,17 @@
     "- Do NOT include timestamps in any format other than [HH:MM:SS].",
     "- Output ONLY the timestamped transcript lines."
   ].join("\n");
-  // Gemini inline_data total request limit is 20MB (audio + base64 overhead).
-  // 14MB raw → ~19MB base64 → safely under 20MB with room for the prompt.
-  // Larger files need the Files API (out of scope for v1) or client-side chunking.
-  var MAX_BYTES = 14 * 1024 * 1024;
+  // Two size limits in play:
+  //   INLINE_MAX_BYTES — Gemini inline_data total request cap is 20MB. 14MB raw
+  //     audio → ~19MB base64 → safely under 20MB with room for the prompt.
+  //     Files at or below this size use the inline path (one round-trip).
+  //   MAX_BYTES — Gemini Files API hard cap is 2GB per file. Anything above
+  //     INLINE_MAX_BYTES but at or below MAX_BYTES uploads via Files API.
+  //     Anything above MAX_BYTES is rejected outright.
+  var INLINE_MAX_BYTES = 14 * 1024 * 1024;
+  var MAX_BYTES = 2 * 1024 * 1024 * 1024;
+  var FILES_API_UPLOAD = "https://generativelanguage.googleapis.com/upload/v1beta/files";
+  var FILES_API_BASE = "https://generativelanguage.googleapis.com/v1beta/files";
   var pendingFile = null;
 
   function yield_(){ return new Promise(function (r) { setTimeout(r, 0); }); }
@@ -630,7 +637,7 @@
   function setPendingFile(file){
     if (!file) { pendingFile = null; renderUploadZone(); return; }
     if (file.size > MAX_BYTES) {
-      toast("File too large (" + fmtBytes(file.size) + " \u2014 max ~14MB raw). Compress to a lower bitrate, split into shorter segments, or trim silence.");
+      toast("File too large (" + fmtBytes(file.size) + " \u2014 max 2 GB). Split into smaller segments first.");
       audiofile.value = "";
       return;
     }
@@ -644,7 +651,7 @@
         '<div class="pick">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
         'Choose audio or video file</div>' +
-        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to ~14 MB (~15 min)</div>';
+        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to 2 GB</div>';
       return;
     }
     uploadzone.classList.add("has-file");
@@ -689,47 +696,132 @@
     });
   }
 
+  // === Gemini Files API helpers (for files > INLINE_MAX_BYTES) ===
+  // Resumable upload protocol: two-step (start, then upload+finalize).
+  // Returns the File object: { name, uri, state, ... }
+  async function uploadToFilesAPI(file, mime, apiKey){
+    var startRes = await fetch(FILES_API_UPLOAD + "?key=" + encodeURIComponent(apiKey), {
+      method: "POST",
+      headers: {
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Length": String(file.size),
+        "X-Goog-Upload-Header-Content-Type": mime,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ file: { display_name: file.name } })
+    });
+    if (!startRes.ok) {
+      if (startRes.status === 401 || startRes.status === 403) throw new Error("API key rejected \u2014 open Settings");
+      if (startRes.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
+      if (startRes.status === 413) throw new Error("File too large for Gemini");
+      throw new Error("Upload start failed (HTTP " + startRes.status + ")");
+    }
+    var uploadUrl = startRes.headers.get("X-Goog-Upload-URL");
+    if (!uploadUrl) throw new Error("No upload URL returned by Gemini");
+    var uploadRes = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        "X-Goog-Upload-Command": "upload, finalize",
+        "X-Goog-Upload-Offset": "0",
+        "Content-Length": String(file.size)
+      },
+      body: file
+    });
+    if (!uploadRes.ok) {
+      throw new Error("File upload failed (HTTP " + uploadRes.status + ")");
+    }
+    var data = await uploadRes.json();
+    return data && data.file ? data.file : data;
+  }
+  // Poll the file metadata until state becomes ACTIVE (or FAILED / timeout).
+  async function waitForFileActive(fileName, apiKey){
+    var deadline = Date.now() + 120000;  // 2 min ceiling
+    var url = FILES_API_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey);
+    while (Date.now() < deadline) {
+      var r = await fetch(url);
+      if (!r.ok) throw new Error("File status check failed (HTTP " + r.status + ")");
+      var f = await r.json();
+      if (f.state === "ACTIVE") return f;
+      if (f.state === "FAILED") throw new Error("Gemini could not process this file");
+      await new Promise(function (resolve) { setTimeout(resolve, 2000); });
+    }
+    throw new Error("File processing timed out (2 min)");
+  }
+  // Best-effort cleanup — files auto-expire after 48h anyway.
+  async function deleteFile(fileName, apiKey){
+    try {
+      await fetch(FILES_API_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey), { method: "DELETE" });
+    } catch (e) { /* silent */ }
+  }
+
   async function transcribeWithGemini(file, onPhase){
     var key = loadSettings().geminiKey;
     if (!key) throw new Error("No Gemini API key \u2014 open Settings to add one");
 
-    onPhase("Reading");
-    await yield_();
-    var b64 = await fileToBase64(file);
-
-    onPhase("Uploading to Gemini");
-    await yield_();
     var mime = file.type || guessMime(file.name);
-    var url = GEMINI_ENDPOINT + "?key=" + encodeURIComponent(key);
-    var res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: TRANSCRIBE_PROMPT },
-            { inline_data: { mime_type: mime, data: b64 } }
-          ]
-        }],
-        generationConfig: { temperature: 0.1 }
-      })
-    });
-    if (!res.ok) {
-      var body = "";
-      try { body = await res.text(); } catch (e) {}
-      if (res.status === 400) throw new Error("Gemini rejected the request \u2014 check key + file type");
-      if (res.status === 401 || res.status === 403) throw new Error("API key rejected \u2014 open Settings");
-      if (res.status === 413 || /too large/i.test(body)) throw new Error("File too large for Gemini");
-      if (res.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
-      throw new Error("Gemini error " + res.status + ": " + body.slice(0, 120));
+    var useFilesAPI = file.size > INLINE_MAX_BYTES;
+    var audioPart, uploadedFileName = null;
+
+    if (useFilesAPI) {
+      // === Files API path: upload to Google's CDN, then reference by URI ===
+      onPhase("Uploading to Gemini");
+      await yield_();
+      var uploaded = await uploadToFilesAPI(file, mime, key);
+      uploadedFileName = uploaded.name;
+      var fileUri = uploaded.uri;
+      if (!fileUri) throw new Error("File upload didn't return a URI");
+
+      onPhase("Processing");
+      await yield_();
+      await waitForFileActive(uploadedFileName, key);
+
+      audioPart = { file_data: { file_uri: fileUri, mime_type: mime } };
+    } else {
+      // === Inline path: base64-encode the file and POST it directly ===
+      onPhase("Reading");
+      await yield_();
+      var b64 = await fileToBase64(file);
+      onPhase("Uploading to Gemini");
+      await yield_();
+      audioPart = { inline_data: { mime_type: mime, data: b64 } };
     }
+
     onPhase("Transcribing");
-    var json = await res.json();
-    var text = json && json.candidates && json.candidates[0] &&
-               json.candidates[0].content && json.candidates[0].content.parts &&
-               json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text;
-    if (!text) throw new Error("Empty response from Gemini");
-    return text;
+    await yield_();
+    try {
+      var url = GEMINI_ENDPOINT + "?key=" + encodeURIComponent(key);
+      var res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: TRANSCRIBE_PROMPT },
+              audioPart
+            ]
+          }],
+          generationConfig: { temperature: 0.1 }
+        })
+      });
+      if (!res.ok) {
+        var body = "";
+        try { body = await res.text(); } catch (e) {}
+        if (res.status === 400) throw new Error("Gemini rejected the request \u2014 check key + file type");
+        if (res.status === 401 || res.status === 403) throw new Error("API key rejected \u2014 open Settings");
+        if (res.status === 413 || /too large/i.test(body)) throw new Error("File too large for Gemini");
+        if (res.status === 429) throw new Error("Rate limited \u2014 try again in a minute");
+        throw new Error("Gemini error " + res.status + ": " + body.slice(0, 120));
+      }
+      var json = await res.json();
+      var text = json && json.candidates && json.candidates[0] &&
+                 json.candidates[0].content && json.candidates[0].content.parts &&
+                 json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text;
+      if (!text) throw new Error("Empty response from Gemini");
+      return text;
+    } finally {
+      if (uploadedFileName) await deleteFile(uploadedFileName, key);
+    }
   }
 
   // theme toggle
