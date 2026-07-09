@@ -165,6 +165,7 @@
   function binHas(k){return state.bin.some(function(b){return b.key===k})}
 
   function search(){
+    if(window.TopClips&&window.TopClips.isActive())window.TopClips.exit();
     var raw=q.value.trim(), ws=terms(raw);
     $("#clearq").style.display=raw?"block":"none";
     var enabled=state.sources.filter(function(s){return state.enabled.indexOf(s.id)>=0});
@@ -232,7 +233,12 @@
     var at=state.bin.findIndex(function(b){return b.key===key});
     if(at>=0)state.bin.splice(at,1);
     else state.bin.push({key:key,srcId:srcId,srcTitle:s.title,t:seg.t,sec:seg.sec,text:seg.text});
-    save();search();renderBin();
+    save();
+    // Inside Top Clips mode, refresh its cards instead of repainting search —
+    // otherwise +BIN would wipe the recommendations view.
+    if(window.TopClips&&window.TopClips.isActive())window.TopClips.refresh();
+    else search();
+    renderBin();
   }
 
   function renderBin(){
@@ -832,6 +838,13 @@
     if(l){l.innerHTML="";im.alt="Michael Morrison";l.appendChild(im);}};im.src="logo.png";})();
 
   renderChips();renderBin();search();
+
+  // Top Clips (topclips.js) — dependency injection keeps app.js's IIFE closed.
+  if(window.TopClips)window.TopClips.init({
+    getState:function(){return state}, save:save, search:search,
+    toggleBin:toggleBin, renderBin:renderBin, binHas:binHas, esc:esc, toast:toast,
+    getProviderConfig:getProviderConfig, loadSettings:loadSettings
+  });
 
   // Register service worker so the app shell caches for offline use after the
   // first visit. IndexedDB stays as-is — the SW only handles asset caching.
