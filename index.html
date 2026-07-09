@@ -56,6 +56,7 @@
       <button class="clearq" id="clearq" aria-label="Clear">&times;</button>
     </div>
     <div class="meta">
+      <button class="tcbtn" id="topclips" title="Scan your library for proven clip openers">TOP CLIPS</button>
       <span class="count" id="count"></span>
       <span id="chips" style="display:contents"></span>
     </div>
@@ -165,6 +166,17 @@
           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a key at openrouter.ai</a>.</p>
       </div>
 
+      <div class="divider">CHANNEL</div>
+
+      <div>
+        <label for="channelname">Channel name</label>
+        <input id="channelname" type="text" placeholder="e.g. Uncle Scurry Clips" autocomplete="off">
+        <label for="channelniche" style="margin-top:10px;display:block">Niche</label>
+        <select id="channelniche"></select>
+        <p class="hint" style="margin-top:8px">Feeds Top Clips — niche-fit ranking offline, and the
+          AI pass when a key is set.</p>
+      </div>
+
       <div class="divider">DATA</div>
 
       <div>
@@ -199,6 +211,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="llm.js"></script>
+<script src="topclips-patterns.js"></script>
+<script src="topclips.js"></script>
 <script src="app.js"></script>
 
 </body>
