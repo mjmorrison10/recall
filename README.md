@@ -30,6 +30,20 @@ The best clips aren't one clean 60-second section. They're built — a line here
 
 Your library is saved locally in your browser — it grows every time you add a source, and nothing leaves your device.
 
+## Top Clips & Top Posts
+
+**TOP CLIPS** scans your library for lines that match proven hooks — your own HOOKLAB
+ledger winners (read automatically when both apps live in the same browser) and
+high-evidence hook patterns. Every candidate is labeled with its provenance:
+**PROOF**, **AI + PROOF** (a close variation of something proven, named), or
+**AI RECOMMENDED** (honest AI judgment). Never a virality score. Works with no API
+key (PROOF only); a key unlocks the AI labels.
+
+**→ POST** on any candidate turns it into a ready X or Threads post: a verbatim
+pull-quote with your attribution offline, or AI compose with a key — grounded in the
+same evidence. Copy it, open a **prefilled compose window** on X/Threads, or **SEND
+TO BLAST** to hand the caption straight to the posting command center.
+
 ## AI transcription
 
 **Gemini is the default** — add a free API key in Settings and file uploads get transcribed
