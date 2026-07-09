@@ -31,3 +31,18 @@ Note: the original version of this doctrine paired a planning model with a
 separate execution model and included reminders to switch between them at
 phase boundaries. That's intentionally dropped here — model selection is
 handled manually for now.
+
+## Standing workflow preferences (all sessions)
+
+- **Branching:** always `git fetch origin` first (local refs go stale),
+  then a fresh `claude/<feature>` branch off `origin/main` — one branch
+  per feature. Never reuse a branch whose PR has merged; never force-push.
+- **Shipping:** push with `-u`, open a PR, squash-merge. GitHub Pages
+  deploys from main — after merging, poll the live URL with a
+  cache-buster until the change is verifiably live.
+- **Verification before pushing:** exercise the change end-to-end
+  headlessly (Playwright for the web apps). Stub AI endpoints by
+  intercepting the network request — ES module bindings can't be
+  monkey-patched.
+- **Doctrine plans:** `plans/YYYY-MM-DD-<task>.md` files are committed
+  with the work, `approved:` frontmatter filled in.
