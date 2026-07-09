@@ -505,6 +505,8 @@
     var chname = $("#channelname"), chniche = $("#channelniche");
     if (chname) chname.value = s.channelName || "";
     if (chniche) chniche.value = s.channelNiche || "general";
+    var pattr = $("#postattr");
+    if (pattr) pattr.value = s.postAttribution || "";
 
     gemkey.value = s.geminiKey || "";
     keystatus.textContent = keyStatusText(s.geminiKey);
@@ -549,7 +551,7 @@
     var provider = providerOpenrouter.checked ? "openrouter" : "gemini";
     if (provider === "gemini" && !gk) { toast("Enter a Gemini key first"); return; }
     if (provider === "openrouter" && !ok) { toast("Enter an OpenRouter key first"); return; }
-    var chname = $("#channelname"), chniche = $("#channelniche");
+    var chname = $("#channelname"), chniche = $("#channelniche"), pattr = $("#postattr");
     var saved = saveSettingsObj({
       provider: provider,
       geminiKey: gk,
@@ -557,6 +559,7 @@
       openrouterModel: ormodel.value.trim() || "google/gemini-2.0-flash-001",
       channelName: chname ? chname.value.trim() : "",
       channelNiche: chniche ? chniche.value : "general",
+      postAttribution: pattr ? pattr.value.trim() : "",
     });
     if (saved) {
       toast("Settings saved");

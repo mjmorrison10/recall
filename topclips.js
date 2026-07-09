@@ -15,6 +15,10 @@ window.TopClips = (function () {
   var bank = null;       // {patterns, niches, source:"live"|"snapshot", snapshotDate}
   var lastCandidates = null;
   var lastMeta = null;
+  // Top Posts: which candidate's compose panel is open (survives refresh()) and
+  // the per-candidate drafts, both session-RAM only.
+  var openPostKey = null;
+  var postDrafts = Object.create(null); // key -> {x, threads, mode:"quote"|"ai"}
 
   // --- pure helpers (tokens/jaccard/specificity adapted from Hooklabs/app.js:124-150) ---
   function tokens(s) {
@@ -112,6 +116,94 @@ window.TopClips = (function () {
   var SKEL_CONTAIN = 0.75;    // scaffold skeleton mostly present in the line
   var AI_FEED_CAP = 80;
   var DISPLAY_CAP = 20;
+
+  // --- Top Posts: turn a candidate into an X/Threads text post ---
+  var POST_LIMITS = { x: 280, threads: 500 };
+  var INTENT = {
+    x: function (t) { return "https://x.com/intent/post?text=" + encodeURIComponent(t); },
+    threads: function (t) { return "https://www.threads.net/intent/post?text=" + encodeURIComponent(t); },
+  };
+  var HANDOFF_KEY = "blast_handoff_v1";
+  var DEFAULT_ATTRIBUTION = "— {show}";
+
+  // Trim on a word boundary + ellipsis. Invariant: the result minus the trailing
+  // ellipsis is a character-for-character PREFIX of the input — the proven line
+  // is only ever truncated, never rewritten.
+  function trimToFit(text, budget) {
+    text = String(text);
+    if (text.length <= budget) return text;
+    var cut = text.slice(0, Math.max(0, budget - 1));
+    var word = cut.replace(/\s+\S*$/, "");
+    if (word.trim()) cut = word;
+    cut = cut.replace(/[\s.,;:!?—-]+$/, "");
+    return cut + "…";
+  }
+  // split/join (not .replace) so "$" in a show title can't act as a replacement
+  // pattern — same rationale as BLAST's applyTemplate.
+  function attributionFor(settings, srcTitle) {
+    var tpl = ((settings && settings.postAttribution) || "").trim() || DEFAULT_ATTRIBUTION;
+    return tpl.split("{show}").join(srcTitle);
+  }
+  function composeQuote(candidate, limit, settings) {
+    var attr = attributionFor(settings, candidate.srcTitle);
+    var budget = limit - attr.length - 3; // 2 curly quotes + newline
+    if (budget < 20) return trimToFit(candidate.text, limit); // pathological template — drop attribution
+    return "“" + trimToFit(candidate.text, budget) + "”\n" + attr;
+  }
+  function composeOffline(candidate, settings) {
+    return {
+      x: composeQuote(candidate, POST_LIMITS.x, settings),
+      threads: composeQuote(candidate, POST_LIMITS.threads, settings),
+      mode: "quote",
+    };
+  }
+  function aiComposePost(candidate, settings) {
+    var evidence =
+      candidate.match && candidate.match.kind === "pattern"
+        ? 'matches proven pattern "' + candidate.match.patternName + '" (scaffold: "' + candidate.match.scaffold + '")'
+        : candidate.match && candidate.match.kind === "ledger"
+        ? "matches the creator's own proven winner: \"" + candidate.match.hook + '"'
+        : candidate.reason
+        ? "AI-recommended line (reason: " + candidate.reason + ")"
+        : "no proof trail";
+    var prompt =
+      "You write text posts for a short-form creator. Ground everything in the provided\n" +
+      "transcript line — never invent claims, numbers, or patterns, and never mention scores.\n" +
+      "Keep the line's substance; quote it or reframe it lightly.\n" +
+      'Line: "' + candidate.text + '" — from "' + candidate.srcTitle + '" at ' + candidate.t + ".\n" +
+      "Evidence: " + evidence + ".\n" +
+      "Channel: " + ((settings && settings.channelName) || "unnamed") +
+      ", niche: " + ((settings && settings.channelNiche) || "general") + ".\n" +
+      'Return strict JSON only: {"x":"<post, hard max 280 chars>","threads":"<post, hard max 500 chars>"}';
+    return window.LLMProvider.generateText(D.getProviderConfig(), {
+      prompt: prompt, temperature: 0.5, jsonMode: true, maxTokens: 600,
+    }).then(function (text) {
+      var parsed;
+      try { parsed = JSON.parse(text); }
+      catch (e) {
+        var m = String(text).match(/\{[\s\S]*\}/);
+        if (m) parsed = JSON.parse(m[0]); else throw new Error("AI returned unparseable output");
+      }
+      if (!parsed || typeof parsed.x !== "string" || !parsed.x.trim() ||
+          typeof parsed.threads !== "string" || !parsed.threads.trim()) {
+        throw new Error("AI compose came back incomplete");
+      }
+      return {
+        x: trimToFit(parsed.x.trim(), POST_LIMITS.x),
+        threads: trimToFit(parsed.threads.trim(), POST_LIMITS.threads),
+        mode: "ai",
+      };
+    });
+  }
+  function sendToBlast(text) {
+    try {
+      localStorage.setItem(HANDOFF_KEY, JSON.stringify({
+        caption: text, source: "recall-topclips", createdAt: Date.now(),
+      }));
+    } catch (e) { D.toast("Couldn't hand off (storage full?)"); return; }
+    window.open(new URL("../blast/", location.href).href, "_blank", "noopener");
+    D.toast("Sent to BLAST");
+  }
 
   function scanLibrary(theBank, winners, settings, onProgress) {
     return new Promise(function (resolve) {
@@ -355,15 +447,117 @@ window.TopClips = (function () {
         '<div class="head"><span class="tc">' + c.t + "</span>" +
         '<span class="src">' + esc(c.srcTitle) + "</span>" +
         (LABEL_HTML[c.label] || "") +
+        '<button class="postbtn" data-key="' + c.key + '">→ POST</button>' +
         '<button class="addbtn' + (added ? " added" : "") + '" data-key="' + c.key + '" ' +
         'data-src="' + c.srcId + '" data-idx="' + c.idx + '">' + (added ? "IN BIN ✓" : "+ BIN") + "</button></div>" +
         '<div class="line">' + esc(c.text) + "</div>" +
-        groundingHtml(c) + "</div>";
+        groundingHtml(c) +
+        (c.key === openPostKey ? postPanelHtml(c) : "") + "</div>";
     }).join("");
     bindHead();
     results.querySelectorAll(".addbtn").forEach(function (b) {
       b.addEventListener("click", function () { D.toggleBin(b.dataset.src, +b.dataset.idx); });
     });
+    bindPostControls(results, shown);
+  }
+
+  // --- Top Posts panel ---
+  function postProvenance(c) {
+    var esc = D.esc;
+    if (c.match && c.match.kind === "pattern") return 'post grounded in: <b>pattern "' + esc(c.match.patternName) + '"</b>';
+    if (c.match && c.match.kind === "ledger") return 'post grounded in: <b>your winner “' + esc(c.match.hook) + '”</b>';
+    return "verbatim quote — from " + esc(c.srcTitle) + " @ " + c.t;
+  }
+  function postVariantHtml(c, variant, label) {
+    var esc = D.esc;
+    var draft = postDrafts[c.key][variant];
+    var limit = POST_LIMITS[variant];
+    var level = draft.length > limit ? "over" : draft.length >= Math.round(limit * 0.9) ? "near" : "ok";
+    return '<div class="postvariant" data-variant="' + variant + '">' +
+      '<div class="postvhead">' + label +
+      ' <span class="postcount" data-level="' + level + '">' + draft.length + " / " + limit + "</span></div>" +
+      '<textarea class="posttext" data-variant="' + variant + '" rows="3">' + esc(draft) + "</textarea>" +
+      '<div class="postactions">' +
+      '<button class="postcopy" data-variant="' + variant + '">COPY</button>' +
+      '<a class="postintent" data-variant="' + variant + '" target="_blank" rel="noopener" href="' +
+        esc(INTENT[variant](draft)) + '">OPEN IN ' + label.toUpperCase() + " →</a>" +
+      '<button class="postsend" data-variant="' + variant + '">SEND TO BLAST</button>' +
+      "</div></div>";
+  }
+  function postPanelHtml(c) {
+    var keyed = hasKey(D.getProviderConfig());
+    return '<div class="postpanel" data-key="' + c.key + '">' +
+      '<div class="postprov">' + postProvenance(c) + "</div>" +
+      postVariantHtml(c, "x", "X") +
+      postVariantHtml(c, "threads", "Threads") +
+      (keyed
+        ? '<button class="postai">✦ AI COMPOSE</button>'
+        : '<div class="tchint">Offline quote mode — add an API key in Settings for AI compose.</div>') +
+      "</div>";
+  }
+  function bindPostControls(container, shown) {
+    var byKey = Object.create(null);
+    shown.forEach(function (c) { byKey[c.key] = c; });
+    container.querySelectorAll(".postbtn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var key = b.dataset.key;
+        if (openPostKey === key) { openPostKey = null; }
+        else {
+          openPostKey = key;
+          if (!postDrafts[key]) postDrafts[key] = composeOffline(byKey[key], D.loadSettings());
+        }
+        renderTopClips(lastCandidates, lastMeta);
+      });
+    });
+    var panel = container.querySelector(".postpanel");
+    if (!panel) return;
+    var c = byKey[panel.dataset.key];
+    if (!c) return;
+    // Surgical input handling — update draft/count/intent-href without a
+    // re-render, so typing never blurs the textarea (refreshValidation discipline).
+    panel.querySelectorAll(".posttext").forEach(function (ta) {
+      ta.addEventListener("input", function () {
+        var variant = ta.dataset.variant;
+        postDrafts[c.key][variant] = ta.value;
+        var limit = POST_LIMITS[variant];
+        var count = panel.querySelector('.postvariant[data-variant="' + variant + '"] .postcount');
+        if (count) {
+          count.textContent = ta.value.length + " / " + limit;
+          count.setAttribute("data-level",
+            ta.value.length > limit ? "over" : ta.value.length >= Math.round(limit * 0.9) ? "near" : "ok");
+        }
+        var intent = panel.querySelector('.postintent[data-variant="' + variant + '"]');
+        if (intent) intent.href = INTENT[variant](ta.value);
+      });
+    });
+    panel.querySelectorAll(".postcopy").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var text = postDrafts[c.key][b.dataset.variant];
+        var done = function () { D.toast("Copied for " + (b.dataset.variant === "x" ? "X" : "Threads")); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { D.toast("Couldn't copy — select the text manually"); });
+        } else { D.toast("Couldn't copy — select the text manually"); }
+      });
+    });
+    panel.querySelectorAll(".postsend").forEach(function (b) {
+      b.addEventListener("click", function () { sendToBlast(postDrafts[c.key][b.dataset.variant]); });
+    });
+    var aiBtn = panel.querySelector(".postai");
+    if (aiBtn) {
+      aiBtn.addEventListener("click", function () {
+        aiBtn.disabled = true;
+        aiBtn.textContent = "Composing…";
+        aiComposePost(c, D.loadSettings()).then(function (result) {
+          postDrafts[c.key] = result;
+          renderTopClips(lastCandidates, lastMeta); // panel stays open via openPostKey
+        }).catch(function (err) {
+          console.warn("topclips ai compose:", err);
+          aiBtn.disabled = false;
+          aiBtn.textContent = "✦ AI COMPOSE";
+          D.toast("AI compose failed — showing verbatim quote");
+        });
+      });
+    }
   }
   function bindHead() {
     var back = document.querySelector("#tcback");
@@ -417,7 +611,7 @@ window.TopClips = (function () {
       D.search();
     });
   }
-  function exit() { active = false; }
+  function exit() { active = false; openPostKey = null; }
   function isActive() { return active; }
   function refresh() {
     if (active && lastCandidates) renderTopClips(lastCandidates, lastMeta);

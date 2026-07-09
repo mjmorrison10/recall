@@ -300,6 +300,36 @@
     padding-left:11px;border-left:2px solid var(--gold)}
   .tcground b{color:var(--gold);font-weight:600}
 
+  /* Top Posts — X/Threads composer inside a Top Clips card */
+  .postbtn{background:none;border:1px solid var(--gold);color:var(--gold);
+    font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;
+    padding:3px 9px;border-radius:14px;cursor:pointer;white-space:nowrap}
+  .postbtn:hover{background:var(--gold-ghost)}
+  .postpanel{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+  .postprov{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-bottom:10px}
+  .postprov b{color:var(--gold);font-weight:600}
+  .postvariant{margin-bottom:12px}
+  .postvhead{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+    font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
+  .postcount{font-weight:600;font-size:9.5px;border:1px solid var(--border);
+    border-radius:14px;padding:1px 7px;color:var(--faint)}
+  .postcount[data-level="near"]{color:#B07600;border-color:rgba(176,118,0,.4)}
+  .postcount[data-level="over"]{color:#F2685C;border-color:rgba(242,104,92,.4)}
+  .posttext{width:100%;background:var(--ground);border:1px solid var(--border);
+    border-radius:8px;padding:8px 10px;color:var(--ink);font-family:var(--sans);
+    font-size:13px;line-height:1.45;resize:vertical}
+  .posttext:focus{outline:none;border-color:var(--gold)}
+  .postactions{display:flex;gap:7px;flex-wrap:wrap;margin-top:6px}
+  .postactions button,.postactions a.postintent{background:var(--surface);
+    border:1px solid var(--border);color:var(--muted);font-family:var(--mono);
+    font-size:10px;font-weight:700;letter-spacing:.06em;padding:5px 10px;
+    border-radius:14px;cursor:pointer;text-decoration:none;display:inline-block}
+  .postactions button:hover,.postactions a.postintent:hover{color:var(--gold);border-color:var(--gold)}
+  .postai{background:var(--gold);border:none;color:#241a06;font-family:var(--mono);
+    font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:6px 13px;
+    border-radius:14px;cursor:pointer}
+  .postai:disabled{opacity:.6;cursor:wait}
+
   :root{
     --ground:#0E1116; --surface:#161B22; --surface2:#1D242E; --border:#2A333F;
     --ink:#E6EAF0; --muted:#8A94A6; --faint:#5C6675;
