@@ -197,6 +197,109 @@ window.TopClips = (function () {
     return null;
   }
 
+  // --- AI pass: adds AI + PROOF (grounded variations) and AI RECOMMENDED ---
+  // One jsonMode call. Mirrors HOOKLAB's underwriter discipline: the model
+  // labels existing transcript lines against the provided evidence — it never
+  // invents patterns and can never downgrade an offline PROOF.
+  function hasKey(cfg) {
+    return cfg.provider === "openrouter" ? !!cfg.openrouterKey : !!cfg.geminiKey;
+  }
+  function buildAIPrompt(candidates, theBank, winners, settings) {
+    var payload = {
+      channel: {
+        name: (settings && settings.channelName) || "",
+        niche: (settings && settings.channelNiche) || "general",
+      },
+      patterns: theBank.patterns.map(function (p) {
+        return { id: p.id, name: p.name, family: p.family, scaffold: p.scaffold };
+      }),
+      ledgerWinners: winners.slice(0, 15).map(function (w) {
+        return { hook: w.hook, family: w.family };
+      }),
+      candidates: candidates.map(function (c, i) {
+        return {
+          i: i, text: c.text,
+          offlineProof: c.label === "proof",
+          offlineMatch: c.match
+            ? (c.match.kind === "pattern" ? c.match.patternName : c.match.hook)
+            : null,
+        };
+      }),
+    };
+    return (
+      "You are RECALL Top Clips, an evidence-grounded clip scout for a short-form creator.\n" +
+      "You do NOT invent hook patterns and you NEVER output a virality score.\n" +
+      'Label each selected transcript line with exactly one of: "proof" | "ai_proof" | "ai".\n' +
+      "Rules:\n" +
+      '1. "ai_proof" ONLY when the line is a close variation of a provided pattern scaffold or a\n' +
+      '   provided ledger winner. "grounding" MUST name it: the exact patternId, or the winner hook text.\n' +
+      '2. "ai" = pure judgment that the line opens a strong clip for this channel. grounding stays "".\n' +
+      '   "reason" explains the judgment in one short sentence.\n' +
+      '3. Candidates marked offlineProof:true are already proven. Echo them as "proof" or omit them.\n' +
+      "   Never relabel or downgrade them.\n" +
+      "4. Prefer lines fitting the channel niche and voice.\n" +
+      "5. Select at most 20 total. Return strict JSON only.\n" +
+      "Context: " + JSON.stringify(payload) + "\n" +
+      'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":""}]}'
+    );
+  }
+  function mergeAIResults(candidates, parsed, theBank, winners) {
+    var clips = (parsed && parsed.clips) || [];
+    var byIdx = Object.create(null);
+    clips.forEach(function (cl) {
+      if (typeof cl.i !== "number" || cl.i < 0 || cl.i >= candidates.length) return; // out of range
+      byIdx[cl.i] = cl;
+    });
+    candidates.forEach(function (c, i) {
+      var cl = byIdx[i];
+      if (c.label === "proof") {
+        // offline evidence is immutable; AI may only add color
+        if (cl && cl.reason && !c.reason) c.reason = String(cl.reason);
+        return;
+      }
+      if (!cl) return;
+      var label = cl.label === "ai_proof" ? "ai_proof" : cl.label === "ai" ? "ai" : null;
+      if (!label) return;
+      if (label === "ai_proof") {
+        // demote unless the grounding names a real pattern or a real winner
+        var pat = findPattern(theBank, cl.patternId);
+        var groundsWinner = false;
+        if (!pat && cl.grounding) {
+          var gset = tokens(String(cl.grounding));
+          for (var wi = 0; wi < winners.length; wi++) {
+            if (jaccardSets(gset, winners[wi].hookTokens) >= 0.3) { groundsWinner = true; break; }
+          }
+        }
+        if (!pat && !groundsWinner) label = "ai";
+        else if (pat && !c.match) {
+          c.match = { kind: "pattern", patternId: pat.id, patternName: pat.name, scaffold: pat.scaffold };
+        }
+      }
+      c.label = label;
+      c.grounding = String(cl.grounding || "");
+      c.reason = String(cl.reason || "");
+    });
+    var order = { proof: 0, ai_proof: 1, ai: 2 };
+    return candidates.slice().sort(function (a, b) {
+      var la = a.label ? order[a.label] : 9, lb = b.label ? order[b.label] : 9;
+      return la !== lb ? la - lb : b.rank - a.rank;
+    });
+  }
+  function aiPass(candidates, theBank, winners, settings) {
+    var prompt = buildAIPrompt(candidates, theBank, winners, settings);
+    return window.LLMProvider.generateText(D.getProviderConfig(), {
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 3000,
+    }).then(function (text) {
+      var parsed;
+      try { parsed = JSON.parse(text); }
+      catch (e) {
+        var m = String(text).match(/\{[\s\S]*\}/);
+        if (m) parsed = JSON.parse(m[0]); else throw new Error("AI returned unparseable output");
+      }
+      return mergeAIResults(candidates, parsed, theBank, winners);
+    });
+  }
+
   // --- render ---
   var LABEL_HTML = {
     proof: '<span class="tclabel proof">PROOF</span>',
@@ -286,7 +389,26 @@ window.TopClips = (function () {
           ledgerFound: led.found, winnerCount: led.winners.length, aiNote: "",
         };
         if (!active) return;
+        var cfg = D.getProviderConfig();
+        if (!hasKey(cfg)) {
+          lastMeta.aiNote = "Offline mode — add an API key in Settings to unlock AI + PROOF and AI RECOMMENDED candidates.";
+          renderTopClips(lastCandidates, lastMeta);
+          return;
+        }
+        lastMeta.aiNote = "AI pass running…";
         renderTopClips(lastCandidates, lastMeta);
+        return aiPass(lastCandidates, theBank, led.winners, settings).then(function (merged) {
+          if (!active) return;
+          lastCandidates = merged;
+          lastMeta.aiNote = "";
+          renderTopClips(lastCandidates, lastMeta);
+        }).catch(function (err) {
+          console.warn("topclips ai pass:", err);
+          if (!active) return;
+          lastMeta.aiNote = "AI pass failed (" + (err && err.message || "error") + ") — showing offline PROOF results.";
+          renderTopClips(lastCandidates, lastMeta);
+          D.toast("Top Clips AI pass failed — offline results shown");
+        });
       });
     }).catch(function (err) {
       console.error("topclips:", err);

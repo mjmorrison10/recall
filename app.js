@@ -485,6 +485,15 @@
     openrouterFields.classList.toggle("hidden", provider !== "openrouter");
   }
 
+  // Populate the Top Clips niche select once from the vendored pattern snapshot.
+  (function(){
+    var sel = $("#channelniche");
+    if (!sel || !window.TOPCLIPS_PATTERNS) return;
+    sel.innerHTML = window.TOPCLIPS_PATTERNS.niches.map(function(n){
+      return '<option value="'+n.id+'">'+n.label+'</option>';
+    }).join("");
+  })();
+
   function openSettings(){
     settingscrim.classList.add("open");
     var s = loadSettings();
@@ -492,6 +501,10 @@
     providerGemini.checked = provider === "gemini";
     providerOpenrouter.checked = provider === "openrouter";
     showProviderFields(provider);
+
+    var chname = $("#channelname"), chniche = $("#channelniche");
+    if (chname) chname.value = s.channelName || "";
+    if (chniche) chniche.value = s.channelNiche || "general";
 
     gemkey.value = s.geminiKey || "";
     keystatus.textContent = keyStatusText(s.geminiKey);
@@ -536,11 +549,14 @@
     var provider = providerOpenrouter.checked ? "openrouter" : "gemini";
     if (provider === "gemini" && !gk) { toast("Enter a Gemini key first"); return; }
     if (provider === "openrouter" && !ok) { toast("Enter an OpenRouter key first"); return; }
+    var chname = $("#channelname"), chniche = $("#channelniche");
     var saved = saveSettingsObj({
       provider: provider,
       geminiKey: gk,
       openrouterKey: ok,
       openrouterModel: ormodel.value.trim() || "google/gemini-2.0-flash-001",
+      channelName: chname ? chname.value.trim() : "",
+      channelNiche: chniche ? chniche.value : "general",
     });
     if (saved) {
       toast("Settings saved");
