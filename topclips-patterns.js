@@ -54,7 +54,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "contrarian-stop",
@@ -74,7 +78,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.88,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "specific-proof",
@@ -95,7 +103,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.9,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "mistake-callout",
@@ -114,7 +126,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.87,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "numbered-value",
@@ -135,13 +151,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "mid-action",
    "name": "Mid-Action Open",
    "family": "interrupt",
-   "scaffold": "\u2014and that's the moment everything flipped.",
+   "scaffold": "—and that's the moment everything flipped.",
    "slots": [],
    "niches": [
     "story",
@@ -151,7 +171,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "industry-secret",
@@ -170,7 +193,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "warning-psa",
@@ -190,7 +217,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "before-after",
@@ -210,7 +241,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "hot-take",
@@ -228,7 +263,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "question-bait",
@@ -248,7 +287,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.79,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "i-used-to",
@@ -268,7 +311,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "cost-of-wrong",
@@ -286,7 +333,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "list-tease",
@@ -305,7 +356,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "most-creators-miss",
@@ -322,7 +377,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "time-boxed-result",
@@ -343,7 +402,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.87,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "dont-buy",
@@ -361,7 +424,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "one-change",
@@ -379,7 +446,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "pov-identity",
@@ -398,7 +469,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.78,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "comment-trap",
@@ -416,7 +490,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.77,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "silent-open",
@@ -433,7 +511,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.76,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "checklist-promise",
@@ -451,7 +532,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "myth-bust",
@@ -471,7 +556,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "behind-curtain",
@@ -489,7 +578,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "started-over",
@@ -508,7 +601,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.88,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "do-this-not-that",
@@ -526,7 +623,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "the-real-reason",
@@ -545,13 +646,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.87,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "watch-till-end",
    "name": "Payoff Delay (honest)",
    "family": "curiosity",
-   "scaffold": "I'm going to show you {payoff} \u2014 but only after this warning.",
+   "scaffold": "I'm going to show you {payoff} — but only after this warning.",
    "slots": [
     "payoff"
    ],
@@ -562,7 +667,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.74,
    "evidence": "hypothesis",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "youre-not-lazy",
@@ -581,7 +690,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "name-unnamed-fear",
@@ -601,7 +714,345 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.9,
    "evidence": "historically-documented",
-   "tier": "core"
+   "tier": "core",
+   "mediums": [
+    "video",
+    "text"
+   ]
+  },
+  {
+   "id": "thread-lessons",
+   "name": "Thread Opener: Earned Lessons",
+   "family": "thread",
+   "scaffold": "{n} lessons from {done_thing} that most {audience} learn too late. A thread:",
+   "slots": [
+    "n",
+    "done_thing",
+    "audience"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "finance",
+    "general"
+   ],
+   "strength": 0.86,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "how-i-thread",
+   "name": "Thread Opener: Exact Steps",
+   "family": "thread",
+   "scaffold": "How I went from {start} to {end} in {timeframe} — the exact steps:",
+   "slots": [
+    "start",
+    "end",
+    "timeframe"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "finance",
+    "fitness",
+    "general"
+   ],
+   "strength": 0.87,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "thread-mistakes",
+   "name": "Thread Opener: Expensive Mistakes",
+   "family": "thread",
+   "scaffold": "I spent {cost} learning {domain}. These {n} mistakes were 90% of it:",
+   "slots": [
+    "cost",
+    "domain",
+    "n"
+   ],
+   "niches": [
+    "business",
+    "finance",
+    "creators",
+    "general"
+   ],
+   "strength": 0.84,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "one-line-contrarian",
+   "name": "One-Line Banger",
+   "family": "contrarian",
+   "scaffold": "Hard truth: {claim}.",
+   "slots": [
+    "claim"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "finance",
+    "fitness",
+    "general"
+   ],
+   "strength": 0.85,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "everyone-is-wrong",
+   "name": "Everyone Is Wrong",
+   "family": "contrarian",
+   "scaffold": "Everyone tells you to {common_advice}. Everyone is wrong. Here's what actually works:",
+   "slots": [
+    "common_advice"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "fitness",
+    "finance",
+    "general"
+   ],
+   "strength": 0.82,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "list-colon-promise",
+   "name": "Colon List Promise",
+   "family": "value",
+   "scaffold": "{n} {things} I'd use to {goal} if I started from zero:",
+   "slots": [
+    "n",
+    "things",
+    "goal"
+   ],
+   "niches": [
+    "creators",
+    "business",
+    "tech",
+    "general"
+   ],
+   "strength": 0.84,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "cheat-sheet",
+   "name": "Cheat Sheet Drop",
+   "family": "value",
+   "scaffold": "The {domain} cheat sheet I wish I had at {starting_point}:",
+   "slots": [
+    "domain",
+    "starting_point"
+   ],
+   "niches": [
+    "creators",
+    "business",
+    "tech",
+    "finance",
+    "general"
+   ],
+   "strength": 0.83,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "nobody-tells-you",
+   "name": "Nobody Tells You",
+   "family": "curiosity",
+   "scaffold": "What nobody tells you about {topic}:",
+   "slots": [
+    "topic"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "fitness",
+    "finance",
+    "general"
+   ],
+   "strength": 0.85,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "read-that-again",
+   "name": "Read That Again",
+   "family": "proof",
+   "scaffold": "{shock_stat}. Read that again.",
+   "slots": [
+    "shock_stat"
+   ],
+   "niches": [
+    "business",
+    "finance",
+    "creators",
+    "general"
+   ],
+   "strength": 0.84,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "open-books",
+   "name": "Open Books",
+   "family": "proof",
+   "scaffold": "I'm posting my real {metric} numbers. No blur. {n} takeaways:",
+   "slots": [
+    "metric",
+    "n"
+   ],
+   "niches": [
+    "business",
+    "creators",
+    "finance",
+    "general"
+   ],
+   "strength": 0.83,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "arc-playbook",
+   "name": "Arc + Playbook",
+   "family": "story",
+   "scaffold": "In {time_a} I {low}. Today I {high}. The whole playbook:",
+   "slots": [
+    "time_a",
+    "low",
+    "high"
+   ],
+   "niches": [
+    "business",
+    "story",
+    "creators",
+    "finance",
+    "general"
+   ],
+   "strength": 0.85,
+   "evidence": "market-observed",
+   "tier": "core",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "setback-lesson",
+   "name": "Setback Lesson",
+   "family": "story",
+   "scaffold": "I got {setback} last {timeframe}. Here's what it taught me about {domain}.",
+   "slots": [
+    "setback",
+    "timeframe",
+    "domain"
+   ],
+   "niches": [
+    "story",
+    "business",
+    "creators",
+    "general"
+   ],
+   "strength": 0.8,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "fill-in-blank",
+   "name": "Fill in the Blank",
+   "family": "engagement",
+   "scaffold": "The most underrated {category} is ______.",
+   "slots": [
+    "category"
+   ],
+   "niches": [
+    "creators",
+    "business",
+    "tech",
+    "general"
+   ],
+   "strength": 0.77,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "quote-repost-setup",
+   "name": "Quote-Post Setup",
+   "family": "engagement",
+   "scaffold": "Quote this with your {thing} — I'll rank the best ones.",
+   "slots": [
+    "thing"
+   ],
+   "niches": [
+    "creators",
+    "business",
+    "general"
+   ],
+   "strength": 0.78,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
+  },
+  {
+   "id": "delete-this-later",
+   "name": "Delete This Later",
+   "family": "interrupt",
+   "scaffold": "I'll probably delete this, but {confession}.",
+   "slots": [
+    "confession"
+   ],
+   "niches": [
+    "story",
+    "creators",
+    "business",
+    "general"
+   ],
+   "strength": 0.76,
+   "evidence": "market-observed",
+   "tier": "extended",
+   "mediums": [
+    "text"
+   ]
   },
   {
    "id": "odd-number-list",
@@ -620,7 +1071,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.78,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "negative-promise",
@@ -639,7 +1094,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "expert-wrong",
@@ -658,7 +1117,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "timeline-twist",
@@ -680,7 +1143,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "forbidden-tactic",
@@ -698,7 +1165,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.79,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "micro-confession",
@@ -716,13 +1187,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "speed-run",
    "name": "Speed-Run Tutorial",
    "family": "value",
-   "scaffold": "{goal} in under {minutes} minutes \u2014 no fluff.",
+   "scaffold": "{goal} in under {minutes} minutes — no fluff.",
    "slots": [
     "goal",
     "minutes"
@@ -735,7 +1210,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "common-enemy",
@@ -753,7 +1232,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "receipts-open",
@@ -772,13 +1255,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "loop-callback",
    "name": "Loop / Callback",
    "family": "interrupt",
-   "scaffold": "[End line matches open] \u2014 wait for the loop.",
+   "scaffold": "[End line matches open] — wait for the loop.",
    "slots": [],
    "niches": [
     "creators",
@@ -787,7 +1274,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.77,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "wrong-then-right",
@@ -805,7 +1295,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "niche-callout",
@@ -824,7 +1318,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "price-of-inaction",
@@ -843,7 +1341,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "template-giveaway",
@@ -862,7 +1364,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "day-in-life-lie",
@@ -880,7 +1386,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.79,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "algorithm-truth",
@@ -898,7 +1408,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "client-whisper",
@@ -917,7 +1431,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "two-types",
@@ -936,7 +1454,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "screenshot-this",
@@ -954,7 +1476,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.76,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "unpopular-process",
@@ -972,7 +1498,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "metric-shock",
@@ -993,7 +1523,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "beginner-trap",
@@ -1012,7 +1546,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "late-to-party",
@@ -1030,7 +1568,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.78,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "one-rule",
@@ -1049,7 +1591,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "visual-first-claim",
@@ -1067,7 +1613,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "comment-prompt-split",
@@ -1085,7 +1634,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.75,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "steal-my-stack",
@@ -1103,7 +1656,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "quiet-flex",
@@ -1122,7 +1679,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.77,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "fix-diagnosis",
@@ -1141,13 +1702,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "calendar-truth",
    "name": "Calendar Truth",
    "family": "authority",
-   "scaffold": "Here's my real posting calendar \u2014 not the guru version.",
+   "scaffold": "Here's my real posting calendar — not the guru version.",
    "slots": [],
    "niches": [
     "creators",
@@ -1156,7 +1721,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "hook-about-hooks",
@@ -1172,7 +1741,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "permission-to-quit",
@@ -1191,7 +1764,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.78,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "tiny-lever",
@@ -1212,7 +1789,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "audience-secret",
@@ -1229,7 +1810,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.79,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "first-second-script",
@@ -1246,13 +1831,16 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "niche-math",
    "name": "Niche Math",
    "family": "proof",
-   "scaffold": "{small_niche} \u00d7 {high_intent} beats {big_audience} every time.",
+   "scaffold": "{small_niche} × {high_intent} beats {big_audience} every time.",
    "slots": [
     "small_niche",
     "high_intent",
@@ -1265,7 +1853,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "voiceover-vs-text",
@@ -1282,7 +1874,10 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "deadline-energy",
@@ -1301,7 +1896,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.76,
    "evidence": "hypothesis",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "anti-guru",
@@ -1320,7 +1919,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "case-study-cold",
@@ -1340,7 +1943,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "series-cold-open",
@@ -1356,7 +1963,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "role-reversal",
@@ -1374,7 +1985,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "market-observed",
-   "tier": "extended"
+   "tier": "extended",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "halitosis-diagnosis",
@@ -1393,11 +2008,15 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.91,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "problem-agitate-solve",
-   "name": "Problem\u2013Agitate\u2013Solve",
+   "name": "Problem–Agitate–Solve",
    "family": "mistake",
    "scaffold": "You know {problem}. What you don't feel yet is {agitation}. Here's the way out.",
    "slots": [
@@ -1412,7 +2031,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.9,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "unique-mechanism",
@@ -1431,7 +2054,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.88,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "reason-why",
@@ -1450,7 +2077,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.87,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "preemptive-objection",
@@ -1468,13 +2099,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "demonstration-first",
    "name": "Demonstration First",
    "family": "proof",
-   "scaffold": "[Demo the result] \u2014 now I'll show how.",
+   "scaffold": "[Demo the result] — now I'll show how.",
    "slots": [],
    "niches": [
     "tech",
@@ -1484,11 +2119,14 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.89,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video"
+   ]
   },
   {
    "id": "before-after-bridge",
-   "name": "Before\u2013After\u2013Bridge",
+   "name": "Before–After–Bridge",
    "family": "story",
    "scaffold": "Before: {before}. After: {after}. The bridge was {bridge}.",
    "slots": [
@@ -1505,13 +2143,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.88,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "open-loop-zeigarnik",
    "name": "Open Loop (Zeigarnik)",
    "family": "curiosity",
-   "scaffold": "I'll tell you the third rule last \u2014 first, the one everyone skips.",
+   "scaffold": "I'll tell you the third rule last — first, the one everyone skips.",
    "slots": [],
    "niches": [
     "creators",
@@ -1521,13 +2163,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "social-proof-stack",
    "name": "Social Proof Stack",
    "family": "proof",
-   "scaffold": "{n} {identity} already {action}. You're next \u2014 or not.",
+   "scaffold": "{n} {identity} already {action}. You're next — or not.",
    "slots": [
     "n",
     "identity",
@@ -1541,7 +2187,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "enemy-narrative",
@@ -1561,7 +2211,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "specific-starving-crowd",
@@ -1579,7 +2233,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.87,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "fascination-bullets",
@@ -1598,7 +2256,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.85,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "new-discovery",
@@ -1617,13 +2279,17 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "testimonial-cold",
    "name": "Cold Testimonial Open",
    "family": "proof",
-   "scaffold": "\"{quote}\" \u2014 that's what {person} said after {result}.",
+   "scaffold": "\"{quote}\" — that's what {person} said after {result}.",
    "slots": [
     "quote",
     "person",
@@ -1637,7 +2303,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "question-headline",
@@ -1655,7 +2325,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "how-to-promise",
@@ -1675,7 +2349,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.86,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "slippery-slope-warning",
@@ -1695,7 +2373,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.78,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "insider-language",
@@ -1714,7 +2396,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.81,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "challenge-dare",
@@ -1733,7 +2419,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "plain-speak-shock",
@@ -1751,7 +2441,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "story-sell",
@@ -1770,7 +2464,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "free-curiosity",
@@ -1789,7 +2487,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.82,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "contrast-principle",
@@ -1808,7 +2510,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.83,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "news-angle",
@@ -1828,7 +2534,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.8,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   },
   {
    "id": "command-headline",
@@ -1847,7 +2557,11 @@ window.TOPCLIPS_PATTERNS = {
    ],
    "strength": 0.84,
    "evidence": "historically-documented",
-   "tier": "historical"
+   "tier": "historical",
+   "mediums": [
+    "video",
+    "text"
+   ]
   }
  ]
 };
