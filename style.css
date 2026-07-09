@@ -260,11 +260,27 @@
   .mbody textarea{min-height:170px;font-family:var(--mono);font-size:12.5px;line-height:1.5;resize:vertical}
   .mbody input:focus,.mbody textarea:focus,.mbody select:focus{border-color:var(--gold)}
   .hint{font-size:12px;color:var(--faint);line-height:1.55}
-  .mfoot{display:flex;gap:9px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+  .mfoot{display:flex;gap:9px;align-items:center;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+  /* Status/hint line in the modal footer: pushes the buttons to the right. */
+  .mstatus{margin-right:auto;font-size:12px;line-height:1.4;color:var(--faint);
+    display:flex;align-items:center;gap:8px;min-height:16px}
+  .mstatus.hint{color:var(--muted)}
+  .mstatus.warn{color:var(--gold)}
+  .mstatus.progress{color:var(--ink)}
+  .mspin{width:13px;height:13px;flex:none;border-radius:50%;border:2px solid var(--border);
+    border-top-color:var(--gold);animation:mspin .7s linear infinite}
+  @keyframes mspin{to{transform:rotate(360deg)}}
+  .req{font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--gold);
+    background:var(--gold-ghost);padding:1px 6px;border-radius:20px;margin-left:6px;vertical-align:middle}
   .btn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;padding:9px 15px;border-radius:9px;
-    cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--ink)}
+    cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--ink);
+    transition:background .15s,border-color .15s,color .15s,opacity .15s}
   .btn.ghost{background:none;color:var(--muted)}
   .btn.primary{background:var(--gold);border-color:var(--gold);color:#241a06;font-weight:700}
+  .btn:hover:not(:disabled){background:var(--surface);border-color:var(--gold)}
+  .btn.ghost:hover:not(:disabled){background:var(--gold-ghost);color:var(--ink);border-color:var(--border)}
+  .btn.primary:hover:not(:disabled){background:var(--gold-deep);border-color:var(--gold-deep);color:#fff}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .btn:disabled{opacity:.5;cursor:not-allowed}
 
   .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;

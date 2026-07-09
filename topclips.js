@@ -94,20 +94,25 @@ window.TopClips = (function () {
 
   // The user's HOOKLAB ledger, read directly (localStorage is shared per-origin;
   // both apps live on the same host). Absent = fine — pattern Proof still works.
+  // `reason` distinguishes the "no winners to match" cases so the UI can give
+  // the right nudge: "absent" (never opened HOOKLAB here), "empty" (opened but
+  // ledger has no entries), "no-winners" (entries exist but none marked Winner).
   function loadLedgerWinners() {
     try {
       var raw = localStorage.getItem("hooklab_state_v1");
-      if (!raw) return { winners: [], found: false };
+      if (!raw) return { winners: [], found: false, reason: "absent" };
       var st = JSON.parse(raw);
-      var winners = (st.ledger || [])
+      var ledger = st.ledger || [];
+      var winners = ledger
         .filter(function (e) { return e.outcome === "winner" && e.hook; })
         .slice(0, 50)
         .map(function (e) {
           return { hook: e.hook, hookTokens: tokens(e.hook), patternId: e.patternId || null, family: e.family || "" };
         });
-      return { winners: winners, found: true };
+      var reason = winners.length ? "ok" : (ledger.length ? "no-winners" : "empty");
+      return { winners: winners, found: true, reason: reason };
     } catch (e) {
-      return { winners: [], found: false };
+      return { winners: [], found: false, reason: "absent" };
     }
   }
 
@@ -412,6 +417,32 @@ window.TopClips = (function () {
     return "";
   }
 
+  var HOOKLAB_URL = "https://mjmorrison10.github.io/Hooklabs/";
+  // Short status word for the meta line.
+  function ledgerLabel(meta) {
+    if (meta.ledgerFound && meta.winnerCount > 0) return meta.winnerCount + " winners";
+    if (!meta.ledgerFound) return "not found";
+    return meta.ledgerReason === "empty" ? "empty" : "no winners yet";
+  }
+  // Tailored nudge telling the user exactly what's missing and how to fix it.
+  // Empty when the ledger already has winners to match against.
+  function ledgerHintHTML(meta) {
+    if (meta.ledgerFound && meta.winnerCount > 0) return "";
+    var link = '<a href="' + HOOKLAB_URL + '" target="_blank" rel="noopener">open the full HOOKLAB app</a>';
+    var msg;
+    if (!meta.ledgerFound) {
+      msg = "No HOOKLAB ledger in this browser yet — " + link + " on this device and log at least one " +
+            "winning hook to unlock ledger-proven matches. (The embedded demo on mjmorrisonusa.com keeps " +
+            "separate storage, so open the full app.)";
+    } else if (meta.ledgerReason === "empty") {
+      msg = "Your HOOKLAB ledger is empty — add a hook and mark it a Winner in HOOKLAB (" + link +
+            ") to unlock ledger-proven matches.";
+    } else {
+      msg = "No winning hooks in your HOOKLAB ledger yet — mark a proven hook as a Winner (" + link +
+            ") to unlock ledger-proven matches.";
+    }
+    return '<div class="tchint">' + msg + "</div>";
+  }
   function renderTopClips(candidates, meta) {
     var results = document.querySelector("#results");
     var esc = D.esc;
@@ -422,9 +453,8 @@ window.TopClips = (function () {
       '<span class="tctitle">TOP CLIPS</span>' +
       '<span class="tcmeta">' + shown.length + " candidates · pattern bank: " + meta.bankSource +
       (meta.bankSource === "snapshot" ? " (" + esc(meta.snapshotDate) + ")" : "") +
-      " · ledger: " + (meta.ledgerFound ? meta.winnerCount + " winners" : "not found") + "</span>" +
-      (meta.ledgerFound ? "" :
-        '<div class="tchint">No HOOKLAB ledger found in this browser — open HOOKLAB once on this device to unlock ledger-proven matches.</div>') +
+      " · ledger: " + ledgerLabel(meta) + "</span>" +
+      ledgerHintHTML(meta) +
       (meta.aiNote ? '<div class="tchint">' + esc(meta.aiNote) + "</div>" : "") +
       "</div>" +
       '<div class="tcnote">PROOF = matches a HOOKLAB-verified winner or a high-evidence pattern. ' +
@@ -580,7 +610,8 @@ window.TopClips = (function () {
         lastCandidates = cands;
         lastMeta = {
           bankSource: theBank.source, snapshotDate: theBank.snapshotDate,
-          ledgerFound: led.found, winnerCount: led.winners.length, aiNote: "",
+          ledgerFound: led.found, ledgerReason: led.reason,
+          winnerCount: led.winners.length, aiNote: "",
         };
         if (!active) return;
         var cfg = D.getProviderConfig();

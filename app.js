@@ -63,15 +63,61 @@
   function norm(t){var p=t.split(":").map(function(n){return n.replace(/\D/g,"")});
     if(p.length===2)return "0:"+p[0].padStart(2,"0")+":"+p[1].padStart(2,"0");
     return p.map(function(x,i){return i===0?x:x.padStart(2,"0")}).join(":");}
+  // Two accepted line shapes:
+  //  • single timecode leading the moment:  [00:01:23] text  /  1:23 text
+  //  • a range header (TurboScribe style):   (0:04 - 0:23)  with the paragraph
+  //    on the following line(s); start time wins. Brackets or parens, en/em dash ok.
+  var RANGE_RE = /^[\[(]?\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—]\s*\d{1,2}:\d{2}(?::\d{2})?\s*[\])]?\s*(.*)$/;
+  var STAMP_RE = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+(.+)$/;
+  function cleanLine(t){ return String(t).replace(/\*\*/g,"").replace(/^\w+:\s*/,"").trim(); }
+  // Parse one transcript line into `out`, either starting a new moment or
+  // appending a continuation to the moment above it.
+  function pushLine(out, ln){
+    var mr = ln.match(RANGE_RE);
+    if(mr){ out.push({t:norm(mr[1]), sec:toSec(mr[1]), text:cleanLine(mr[2] || "")}); return; }
+    var m = ln.match(STAMP_RE);
+    if(m){ out.push({t:norm(m[1]), sec:toSec(m[1]), text:cleanLine(m[2])}); return; }
+    if(out.length){
+      var seg = out[out.length-1];
+      var add = cleanLine(ln);
+      if(add) seg.text = seg.text ? seg.text + " " + add : add;
+    }
+  }
+  // Top Clips only scans moments of 4–40 words (topclips.js), so a fat
+  // paragraph block (e.g. a TurboScribe range) would be skipped whole. Split
+  // any >40-word moment into sentence-packed pieces that inherit its start
+  // time, so a hook buried mid- or end-block still surfaces as its own clip.
+  var SEG_MAX_WORDS = 40;
+  function wordCountOf(t){ return (String(t).trim().match(/\S+/g) || []).length; }
+  function splitLongSegments(segs){
+    var out = [];
+    for(var i=0;i<segs.length;i++){
+      var s = segs[i];
+      if(wordCountOf(s.text) <= SEG_MAX_WORDS){ out.push(s); continue; }
+      var sentences = s.text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [s.text];
+      var buf = "", bufw = 0;
+      for(var j=0;j<sentences.length;j++){
+        var sent = sentences[j].trim(); if(!sent) continue;
+        var sw = wordCountOf(sent);
+        if(bufw && bufw + sw > SEG_MAX_WORDS){
+          out.push({t:s.t, sec:s.sec, text:buf});
+          buf = ""; bufw = 0;
+        }
+        buf = buf ? buf + " " + sent : sent;
+        bufw += sw;
+        if(bufw >= SEG_MAX_WORDS){ out.push({t:s.t, sec:s.sec, text:buf}); buf = ""; bufw = 0; }
+      }
+      if(buf) out.push({t:s.t, sec:s.sec, text:buf});
+    }
+    return out;
+  }
   function parse(raw){
     var out=[],lines=raw.split("\n");
     for(var i=0;i<lines.length;i++){
       var ln=lines[i].trim(); if(!ln)continue;
-      var m=ln.match(/^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+(.*)$/);
-      if(m){out.push({t:norm(m[1]),sec:toSec(m[1]),text:m[2].replace(/\*\*/g,"").replace(/^\w+:\s*/,"").trim()});}
-      else if(out.length){out[out.length-1].text+=" "+ln.replace(/\*\*/g,"");}
+      pushLine(out, ln);
     }
-    return out;
+    return splitLongSegments(out);
   }
   function uid(){return Math.random().toString(36).slice(2,9);}
 
@@ -360,19 +406,62 @@
     clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show")},1900);}
 
   // modal
-  var scrim=$("#scrim"),mtitle=$("#mtitle"),mtext=$("#mtext"),msave=$("#msave");
+  var scrim=$("#scrim"),mtitle=$("#mtitle"),mtext=$("#mtext"),msave=$("#msave"),mstatus=$("#mstatus");
+  var modalBusy=false;
+  // Bumped whenever the modal is closed/reset. An in-flight transcription
+  // captures the current token and bails on completion if it changed — so
+  // Cancel mid-upload can't silently add a source after the fact.
+  var uploadToken=0;
   function openModal(){scrim.classList.add("open");mtitle.value="";mtext.value="";msave.disabled=true;
-    pendingFile=null;audiofile.value="";renderUploadZone();
+    pendingFile=null;audiofile.value="";renderUploadZone();setModalStatus("","");
     setTimeout(function(){mtitle.focus()},40);}
-  function closeModal(){scrim.classList.remove("open");}
+  function closeModal(){
+    if(modalBusy){ uploadToken++; modalBusy=false; msave.disabled=false; }
+    scrim.classList.remove("open");
+  }
+
+  // The modal footer status line does triple duty: requirement hint, missing-key
+  // warning, and live transcription progress. kind ∈ "" | "hint" | "warn" | "progress".
+  function setModalStatus(kind, msg){
+    if(!mstatus)return;
+    mstatus.className = "mstatus" + (kind ? " " + kind : "");
+    if(kind === "progress"){
+      mstatus.innerHTML = '<span class="mspin" aria-hidden="true"></span>' + esc(msg || "");
+    } else {
+      mstatus.textContent = msg || "";
+    }
+  }
+  function activeProviderLabel(){
+    return getProviderConfig().provider === "openrouter" ? "OpenRouter" : "Gemini";
+  }
+  function providerHasKey(){
+    var cfg = getProviderConfig();
+    return cfg.provider === "openrouter" ? !!cfg.openrouterKey : !!cfg.geminiKey;
+  }
+  // Tell the user WHY the button is disabled, or warn that a file can't be
+  // transcribed without an API key — surfaced up front instead of only as a
+  // toast after they click. Not shown while a transcription is in flight.
+  function updateModalHint(){
+    if(modalBusy)return;
+    var hasInput = mtext.value.trim() || pendingFile;
+    if(!mtitle.value.trim() && hasInput){
+      setModalStatus("hint", "Add a title to enable “Add to library”");
+    } else if(pendingFile && !providerHasKey()){
+      setModalStatus("warn", "No " + activeProviderLabel() + " API key — add one in Settings to transcribe");
+    } else {
+      setModalStatus("","");
+    }
+  }
   // Cheap check on every keystroke — real parse happens at save time.
   // (Previously parse() ran on every input event, freezing the tab on hour-long transcripts.)
   // Enable save when we have a title plus EITHER a transcript OR an uploaded file.
   function chk(){
     msave.disabled = !(mtitle.value.trim() && (mtext.value.trim() || pendingFile));
+    updateModalHint();
   }
   mtitle.addEventListener("input",chk);mtext.addEventListener("input",chk);
-  $("#mcancel").addEventListener("click",closeModal);
+  var mcancel=$("#mcancel");
+  mcancel.addEventListener("click",closeModal);
   scrim.addEventListener("click",function(e){if(e.target===scrim)closeModal();});
   // Chunked parse — yields to the browser every 500 lines so the UI stays
   // responsive on hour-long transcripts instead of locking the main thread.
@@ -386,16 +475,13 @@
         var end = Math.min(i + CHUNK, lines.length);
         for(; i < end; i++){
           var ln = lines[i].trim(); if(!ln) continue;
-          var m = ln.match(/^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+(.*)$/);
-          if(m){ out.push({t:norm(m[1]), sec:toSec(m[1]),
-                           text:m[2].replace(/\*\*/g,"").replace(/^\w+:\s*/,"").trim()}); }
-          else if(out.length){ out[out.length-1].text += " "+ln.replace(/\*\*/g,""); }
+          pushLine(out, ln);
         }
         if(onProgress) onProgress(i, lines.length);
         if(i < lines.length){
           setTimeout(step, 0);
         } else {
-          resolve(out);
+          resolve(splitLongSegments(out));
         }
       }
       step();
@@ -403,28 +489,41 @@
   }
 
   msave.addEventListener("click", async function(){
+    // Guard against transcribing a file with no key: it would only fail deep
+    // in llm.js as a terse toast. Catch it here with an actionable message.
+    if (pendingFile && !providerHasKey()) {
+      setModalStatus("warn", "No " + activeProviderLabel() + " API key — open Settings to add one");
+      toast("Add a " + activeProviderLabel() + " API key in Settings first");
+      return;
+    }
     msave.disabled = true;
+    modalBusy = true;
+    var myToken = uploadToken;
     var origLabel = msave.textContent;
+    msave.textContent = "Working…";
     try {
       var segs, source;
       if (pendingFile) {
         // === Transcription flow: audio file → provider → [HH:MM:SS] text → parse ===
         var raw = await transcribe(pendingFile, function (label) {
-          msave.textContent = label + "…";
+          if (myToken === uploadToken) setModalStatus("progress", label + "…");
         });
-        msave.textContent = "Parsing…";
+        if (myToken !== uploadToken) return; // canceled mid-upload
+        setModalStatus("progress", "Parsing…");
         await yield_();
         segs = await parseChunked(raw, function (i, total) {
-          msave.textContent = "Parsing… " + i + "/" + total;
+          if (myToken === uploadToken) setModalStatus("progress", "Parsing… " + i + "/" + total);
         });
+        if (myToken !== uploadToken) return; // canceled mid-parse
         if (!segs.length) { toast("No timecoded lines in the response"); return; }
         source = "transcript from " + pendingFile.name;
       } else {
         // === Existing paste flow ===
-        msave.textContent = "Parsing…";
+        setModalStatus("progress", "Parsing…");
         segs = await parseChunked(mtext.value, function (i, total) {
-          msave.textContent = "Parsing… " + i + "/" + total + " lines";
+          setModalStatus("progress", "Parsing… " + i + "/" + total + " lines");
         });
+        if (myToken !== uploadToken) return; // canceled mid-parse
         if (!segs.length) { toast("No timecoded lines found"); return; }
         source = "pasted transcript";
       }
@@ -434,25 +533,41 @@
       save();
       renderChips();
       search();
+      modalBusy = false;
       closeModal();
       toast(segs.length + " moments added (" + source + ")");
-    } catch(e) {
-      toast("Import failed: " + (e && e.message || "unknown error"));
-      console.error("recall import error:", e);
-    } finally {
-      msave.disabled = false;
-      msave.textContent = origLabel;
+      // Success cleanup only — on error we keep the file so the user can fix
+      // the key/model and retry without re-selecting it.
       pendingFile = null;
       audiofile.value = "";
       renderUploadZone();
       chk();
+    } catch(e) {
+      setModalStatus("warn", (e && e.message) || "Import failed");
+      toast("Import failed: " + (e && e.message || "unknown error"));
+      console.error("recall import error:", e);
+    } finally {
+      modalBusy = false;
+      msave.textContent = origLabel;
+      // Re-enable Add (inputs are still present) without wiping an error note.
+      msave.disabled = !(mtitle.value.trim() && (mtext.value.trim() || pendingFile));
     }
   });
 
   // === Settings (BYO API key, Gemini or OpenRouter) ===
   var LS_SETTINGS = "recall_settings_v1";
+  var DEFAULT_OR_MODEL = "google/gemini-2.5-flash";
+  // Slugs OpenRouter has retired — saved settings pointing here now 404
+  // ("No endpoints found"), so silently upgrade them to the current default.
+  var DEAD_OR_MODELS = ["google/gemini-2.0-flash-001", "google/gemini-2.0-flash"];
   function loadSettings(){
-    try { var s = JSON.parse(localStorage.getItem(LS_SETTINGS)); return s || {}; }
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_SETTINGS)) || {};
+      if (s.openrouterModel && DEAD_OR_MODELS.indexOf(s.openrouterModel) >= 0) {
+        s.openrouterModel = DEFAULT_OR_MODEL;
+      }
+      return s;
+    }
     catch (e) { return {}; }
   }
   function saveSettingsObj(s){
@@ -475,7 +590,7 @@
       provider: s.provider === "openrouter" ? "openrouter" : "gemini",
       geminiKey: s.geminiKey || "",
       openrouterKey: s.openrouterKey || "",
-      openrouterModel: s.openrouterModel || "google/gemini-2.0-flash-001",
+      openrouterModel: s.openrouterModel || DEFAULT_OR_MODEL,
     };
   }
 
@@ -519,7 +634,7 @@
     orkeystatus.className = "keystatus " + (s.openrouterKey ? "set" : "empty");
     orkey.type = "password";
     orkeyshow.textContent = "show";
-    ormodel.value = s.openrouterModel || "google/gemini-2.0-flash-001";
+    ormodel.value = s.openrouterModel || DEFAULT_OR_MODEL;
 
     setTimeout(function () { (provider === "gemini" ? gemkey : orkey).focus(); }, 40);
   }
@@ -556,7 +671,7 @@
       provider: provider,
       geminiKey: gk,
       openrouterKey: ok,
-      openrouterModel: ormodel.value.trim() || "google/gemini-2.0-flash-001",
+      openrouterModel: ormodel.value.trim() || DEFAULT_OR_MODEL,
       channelName: chname ? chname.value.trim() : "",
       channelNiche: chniche ? chniche.value : "general",
       postAttribution: pattr ? pattr.value.trim() : "",
@@ -771,7 +886,15 @@
       return;
     }
     pendingFile = file;
+    // Auto-fill the title from the file name so the button enables on file
+    // pick — the empty-title requirement was the #1 "why can't I click Add?".
+    if (mtitle && !mtitle.value.trim()) {
+      mtitle.value = deriveTitle(file.name);
+    }
     renderUploadZone();
+  }
+  function deriveTitle(name){
+    return String(name || "").replace(/\.[a-z0-9]+$/i, "").replace(/[_]+/g, " ").trim();
   }
   function renderUploadZone(){
     if (!pendingFile) {
