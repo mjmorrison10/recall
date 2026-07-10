@@ -652,7 +652,9 @@
     orkey.type = "password";
     orkeyshow.textContent = "show";
     ormodel.value = s.openrouterModel || DEFAULT_OR_MODEL;
-    if (window.StackModels) window.StackModels.populate(document.getElementById("ormodelselect"), ormodel);
+    if (window.StackModels) window.StackModels.populate(
+      document.getElementById("ormodelselect"), ormodel, document.getElementById("ormodelrefresh"),
+      function (ok) { toast(ok ? "Model list updated" : "Couldn't reach OpenRouter"); });
 
     setTimeout(function () { (provider === "gemini" ? gemkey : orkey).focus(); }, 40);
   }
