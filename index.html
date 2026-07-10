@@ -138,6 +138,8 @@
         <p class="hint" style="margin-top:8px">Gemini is the easy default and the only option with a
           large-file upload path for long recordings. OpenRouter lets you pick any text model, but caps out
           around ~15MB per file with no resumable upload.</p>
+        <p class="hint" style="margin-top:6px;color:var(--gold)">🔗 API keys are shared across RECALL,
+          HOOKLAB, BLAST, and PULSE on this device — enter a key once, it works everywhere.</p>
       </div>
 
       <div id="geminiFields"><label>Gemini API key</label>
@@ -207,6 +209,19 @@
           the file. <b>Merge</b> adds sources from the file that aren't already in your library; bin
           items aren't merged.</p>
       </div>
+
+      <div style="margin-top:16px">
+        <label>Whole-stack backup</label>
+        <p class="hint" style="margin:6px 0 10px">One file that backs up <b>all four apps</b> on this
+          device: RECALL's library, your HOOKLAB ledger, BLAST sessions/presets, PULSE tracked posts,
+          and your shared API keys. Restore it on a new browser or device.</p>
+        <div class="keyrow">
+          <button id="stackexport" type="button" class="primary">Export stack backup</button>
+          <button id="stackimport" type="button">Import…</button>
+          <input type="file" id="stackfile" accept="application/json,.json" style="display:none">
+        </div>
+        <div class="keystatus empty" id="stackstatus">Covers RECALL · HOOKLAB · BLAST · PULSE.</div>
+      </div>
     </div>
     <div class="mfoot">
       <button class="btn ghost" id="keyclear">Clear this key</button>
@@ -218,6 +233,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="stackdata.js"></script>
 <script src="llm.js"></script>
 <script src="topclips-patterns.js"></script>
 <script src="topclips.js"></script>
