@@ -163,6 +163,9 @@
   .chip .scout{color:var(--faint);font-size:13px;margin-left:4px;opacity:.7;transition:.12s;cursor:pointer}
   .chip:hover .scout{opacity:1}
   .chip .scout:hover{color:var(--gold)}
+  .chip .ren{color:var(--faint);font-size:12px;margin-left:4px;opacity:.7;transition:.12s;cursor:pointer}
+  .chip:hover .ren{opacity:1}
+  .chip .ren:hover{color:var(--gold)}
   .addsrc{border-style:dashed}
 
   /* layout */
@@ -231,9 +234,13 @@
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .binitem .bsrc{font-family:var(--mono);font-size:10px;color:var(--faint);text-transform:uppercase;
     letter-spacing:.04em;margin-top:2px}
+  .binitem .bacts{flex:none;display:flex;gap:2px;align-self:flex-start}
   .binitem .rm{flex:none;background:none;border:none;color:var(--faint);cursor:pointer;font-size:15px;
     padding:0 3px;align-self:flex-start}
   .binitem .rm:hover{color:var(--gold)}
+  .binitem .edit{flex:none;background:none;border:none;color:var(--faint);cursor:pointer;font-size:12px;
+    padding:0 3px;align-self:flex-start}
+  .binitem .edit:hover{color:var(--gold)}
   .binempty{padding:26px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
   .binempty .k{font-family:var(--mono);color:var(--pos);font-size:12px}
 

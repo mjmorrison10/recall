@@ -199,7 +199,7 @@
   var $=function(s){return document.querySelector(s)};
   var q=$("#q"),results=$("#results"),chips=$("#chips"),count=$("#count"),
       binlist=$("#binlist"),bnum=$("#bnum"),exportBtn=$("#export"),
-      exportSRTBtn=$("#exportSRT");
+      exportSRTBtn=$("#exportSRT"),clearBtn=$("#clearbin");
 
   function esc(s){return s.replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]});}
   function terms(str){return str.toLowerCase().split(/\s+/).filter(function(w){return w.length});}
@@ -291,6 +291,7 @@
     bnum.textContent=state.bin.length;
     exportBtn.disabled=!state.bin.length;
     exportSRTBtn.disabled=!state.bin.length;
+    if(clearBtn)clearBtn.disabled=!state.bin.length;
     if(!state.bin.length){
       binlist.innerHTML='<div class="binempty">Hit <span class="k">+ BIN</span> on any moment to '+
         'start building a clip concept. Stack moments from different sources — that’s where the '+
@@ -301,12 +302,26 @@
         '<div class="bmid"><div class="btc">'+b.t+'</div>'+
         '<div class="btx">'+esc(b.text)+'</div>'+
         '<div class="bsrc">'+esc(b.srcTitle)+'</div></div>'+
-        '<button class="rm" data-k="'+b.key+'" aria-label="Remove">&times;</button></div>';
+        '<div class="bacts">'+
+        '<button class="edit" data-ek="'+b.key+'" aria-label="Edit text">✎</button>'+
+        '<button class="rm" data-k="'+b.key+'" aria-label="Remove">&times;</button></div></div>';
     }).join("");
     binlist.querySelectorAll(".rm").forEach(function(btn){
       btn.addEventListener("click",function(){
         state.bin=state.bin.filter(function(b){return b.key!==btn.dataset.k});
         save();search();renderBin();
+      });
+    });
+    binlist.querySelectorAll(".edit").forEach(function(btn){
+      btn.addEventListener("click",function(){
+        var b=state.bin.find(function(v){return v.key===btn.dataset.ek});
+        if(!b)return;
+        var txt=prompt("Edit this moment's text",b.text);
+        if(txt==null)return;
+        txt=txt.trim();
+        if(!txt)return;
+        b.text=txt;
+        save();renderBin();
       });
     });
   }
@@ -318,6 +333,7 @@
         '<span class="sw"></span>'+esc(s.title)+
         ' <span class="n">'+s.segments.length+'</span>'+
         '<span class="scout" data-scout="'+s.id+'" title="Scout this source for hooks">⌕</span>'+
+        '<span class="ren" data-ren="'+s.id+'" title="Rename source">✎</span>'+
         '<span class="x" data-del="'+s.id+'" title="Remove source">×</span></span>';
     }).join("");
     html+='<span class="chip addsrc" id="addchip">+ add source</span>';
@@ -326,6 +342,7 @@
       c.addEventListener("click",function(e){
         if(e.target.dataset.del)return;
         if(e.target.dataset.scout)return;
+        if(e.target.dataset.ren)return;
         var id=c.dataset.id, at=state.enabled.indexOf(id);
         if(at>=0)state.enabled.splice(at,1);else state.enabled.push(id);
         save();search();
@@ -342,6 +359,20 @@
         save();renderChips();search();renderBin();
       });
     });
+    chips.querySelectorAll("[data-ren]").forEach(function(el){
+      el.addEventListener("click",function(e){
+        e.stopPropagation();var id=el.dataset.ren;
+        var s=state.sources.find(function(v){return v.id===id});
+        if(!s)return;
+        var name=prompt("Rename source",s.title);
+        if(name==null)return;
+        name=name.trim();
+        if(!name)return;
+        s.title=name;
+        state.bin.forEach(function(b){if(b.srcId===id)b.srcTitle=name;});
+        save();renderChips();renderBin();search();
+      });
+    });
     chips.querySelectorAll("[data-scout]").forEach(function(el){
       el.addEventListener("click",function(e){
         e.stopPropagation();
@@ -350,6 +381,13 @@
     });
     $("#addchip").addEventListener("click",openModal);
   }
+
+  if(clearBtn)clearBtn.addEventListener("click",function(){
+    if(!state.bin.length)return;
+    if(!confirm("Empty the clip bin? ("+state.bin.length+" moment"+(state.bin.length===1?"":"s")+")"))return;
+    state.bin=[];
+    save();search();renderBin();
+  });
 
   // export
   exportBtn.addEventListener("click",function(){
