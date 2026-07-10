@@ -580,6 +580,9 @@
       if (s.openrouterModel && DEAD_OR_MODELS.indexOf(s.openrouterModel) >= 0) {
         s.openrouterModel = DEFAULT_OR_MODEL;
       }
+      // Keys are shared across the stack: shared store wins, and a legacy local
+      // key is promoted into the shared store the first time it's read.
+      if (window.StackData) s = window.StackData.resolveKeys(s, ["geminiKey", "openrouterKey", "openrouterModel"]);
       return s;
     }
     catch (e) { return {}; }
@@ -691,6 +694,10 @@
       postAttribution: pattr ? pattr.value.trim() : "",
     });
     if (saved) {
+      // Write keys through to the shared store so HOOKLAB/BLAST/PULSE see them.
+      if (window.StackData) window.StackData.writeSharedKeys({
+        geminiKey: gk, openrouterKey: ok, openrouterModel: ormodel.value.trim() || DEFAULT_OR_MODEL,
+      });
       toast("Settings saved");
       closeSettings();
     } else {
@@ -704,18 +711,36 @@
       s.openrouterKey = "";
       orkeystatus.textContent = "No key saved.";
       orkeystatus.className = "keystatus empty";
+      if (window.StackData) window.StackData.clearSharedKey("openrouterKey");
     } else {
       gemkey.value = "";
       s.geminiKey = "";
       keystatus.textContent = "No key saved.";
       keystatus.className = "keystatus empty";
+      if (window.StackData) window.StackData.clearSharedKey("geminiKey");
     }
     saveSettingsObj(s);
-    toast("Key cleared");
+    toast("Key cleared everywhere");
   });
   $("#keycancel").addEventListener("click", closeSettings);
   settingscrim.addEventListener("click", function (e) { if (e.target === settingscrim) closeSettings(); });
   $("#settings").addEventListener("click", openSettings);
+
+  // === Whole-stack backup (all 4 apps) ===
+  (function () {
+    var xp = $("#stackexport"), im = $("#stackimport"), sf = $("#stackfile");
+    if (!xp || !window.StackData) return;
+    xp.addEventListener("click", function () {
+      window.StackData.exportToFile().then(function () { toast("Stack backup downloaded"); })
+        .catch(function () { toast("Backup failed"); });
+    });
+    im.addEventListener("click", function () { sf.click(); });
+    sf.addEventListener("change", function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (f) window.StackData.importFromFile(f, toast);
+      e.target.value = "";
+    });
+  })();
 
   // === Library export / import ===
   var LIBRARY_SCHEMA = "recall.library.v1";
