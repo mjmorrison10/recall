@@ -149,7 +149,8 @@
         </div>
         <div class="keystatus empty" id="keystatus">No key saved.</div>
         <p class="hint keyhint" style="margin-top:8px">Your key is stored only in this browser's
-          localStorage and sent only to Google Gemini for transcription.
+          localStorage and sent only to Google Gemini for transcription. Gemini API keys are free within
+          Google's rate limits; past those limits Google bills your account.
           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key at aistudio.google.com</a>.</p>
       </div>
 
@@ -160,15 +161,12 @@
         </div>
         <div class="keystatus empty" id="orkeystatus">No key saved.</div>
         <label style="margin-top:12px;display:block">Model</label>
-        <input id="ormodel" type="text" list="ormodels" placeholder="openai/gpt-4o-mini" autocomplete="off" spellcheck="false">
-        <datalist id="ormodels">
-          <option value="google/gemini-2.5-flash">Gemini 2.5 Flash — media-capable</option>
-          <option value="openai/gpt-4o-mini">GPT-4o mini — media-capable</option>
-          <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku — text only</option>
-          <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B — text only</option>
-        </datalist>
-        <p class="hint keyhint" style="margin-top:8px">Stored only in this browser's localStorage and sent
-          only to OpenRouter. No large-file upload like Gemini's — long recordings need Gemini.
+        <select id="ormodelselect"></select>
+        <input id="ormodel" type="text" placeholder="openai/gpt-4o-mini" autocomplete="off" spellcheck="false" style="margin-top:8px">
+        <p class="hint keyhint" style="margin-top:8px">Live list from OpenRouter, ranked by
+          <a href="https://arena.ai/leaderboard/text" target="_blank" rel="noopener">arena.ai</a>.
+          FREE means $0 within the provider's rate limits; paid prices are per 1M tokens.
+          No large-file upload like Gemini's — long recordings need Gemini.
           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a key at openrouter.ai</a>.</p>
       </div>
 
@@ -235,6 +233,7 @@
 
 <script src="stackdata.js"></script>
 <script src="stacknav.js"></script>
+<script src="stackmodels.js"></script>
 <script src="llm.js"></script>
 <script src="topclips-patterns.js"></script>
 <script src="topclips.js"></script>
