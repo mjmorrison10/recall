@@ -407,6 +407,7 @@ window.TopClips = (function () {
     proof: '<span class="tclabel proof">PROOF</span>',
     ai_proof: '<span class="tclabel aiproof">AI + PROOF</span>',
     ai: '<span class="tclabel ai">AI RECOMMENDED</span>',
+    scan: '<span class="tclabel scan">SCAN</span>',
   };
 
   function groundingHtml(c) {
@@ -452,6 +453,14 @@ window.TopClips = (function () {
     var results = document.querySelector("#results");
     var esc = D.esc;
     var shown = candidates.filter(function (c) { return c.label; }).slice(0, DISPLAY_CAP);
+    // In scout mode, a source may have no proven-pattern matches offline. Rather
+    // than show nothing, backfill with the most specific un-proven lines tagged
+    // SCAN, so the editor always gets a usable shot list.
+    if (meta.scout && shown.length < 10) {
+      var extra = candidates.filter(function (c) { return !c.label; }).slice(0, 10 - shown.length)
+        .map(function (c) { var d = {}; for (var k in c) d[k] = c[k]; d.label = "scan"; return d; });
+      shown = shown.concat(extra);
+    }
     lastShown = shown;
     var head =
       '<div class="tchead">' +
