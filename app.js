@@ -652,6 +652,7 @@
     orkey.type = "password";
     orkeyshow.textContent = "show";
     ormodel.value = s.openrouterModel || DEFAULT_OR_MODEL;
+    if (window.StackModels) window.StackModels.populate(document.getElementById("ormodelselect"), ormodel);
 
     setTimeout(function () { (provider === "gemini" ? gemkey : orkey).focus(); }, 40);
   }
