@@ -160,6 +160,9 @@
   .chip .x{color:var(--faint);font-size:13px;margin-left:1px;opacity:.7;transition:.12s}
   .chip:hover .x{opacity:1}
   .chip .x:hover{color:var(--gold)}
+  .chip .scout{color:var(--faint);font-size:13px;margin-left:4px;opacity:.7;transition:.12s;cursor:pointer}
+  .chip:hover .scout{opacity:1}
+  .chip .scout:hover{color:var(--gold)}
   .addsrc{border-style:dashed}
 
   /* layout */

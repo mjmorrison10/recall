@@ -317,6 +317,7 @@
       return '<span class="chip'+(on?" on":"")+'" data-id="'+s.id+'">'+
         '<span class="sw"></span>'+esc(s.title)+
         ' <span class="n">'+s.segments.length+'</span>'+
+        '<span class="scout" data-scout="'+s.id+'" title="Scout this source for hooks">⌕</span>'+
         '<span class="x" data-del="'+s.id+'" title="Remove source">×</span></span>';
     }).join("");
     html+='<span class="chip addsrc" id="addchip">+ add source</span>';
@@ -324,6 +325,7 @@
     chips.querySelectorAll(".chip[data-id]").forEach(function(c){
       c.addEventListener("click",function(e){
         if(e.target.dataset.del)return;
+        if(e.target.dataset.scout)return;
         var id=c.dataset.id, at=state.enabled.indexOf(id);
         if(at>=0)state.enabled.splice(at,1);else state.enabled.push(id);
         save();search();
@@ -338,6 +340,12 @@
         state.enabled=state.enabled.filter(function(v){return v!==id});
         state.bin=state.bin.filter(function(b){return b.srcId!==id});
         save();renderChips();search();renderBin();
+      });
+    });
+    chips.querySelectorAll("[data-scout]").forEach(function(el){
+      el.addEventListener("click",function(e){
+        e.stopPropagation();
+        if(window.TopClips && window.TopClips.scout) window.TopClips.scout(el.dataset.scout);
       });
     });
     $("#addchip").addEventListener("click",openModal);
@@ -535,7 +543,11 @@
       search();
       modalBusy = false;
       closeModal();
-      toast(segs.length + " moments added (" + source + ")");
+      toast(segs.length + " moments added — scouting for hooks…");
+      // Auto-run a scout report on the source just added, so the user gets a
+      // ranked shot list instead of a cold transcript. (Deferred a tick so the
+      // modal-close render settles first.)
+      if (window.TopClips && window.TopClips.scout) setTimeout(function () { window.TopClips.scout(id); }, 60);
       // Success cleanup only — on error we keep the file so the user can fix
       // the key/model and retry without re-selecting it.
       pendingFile = null;
