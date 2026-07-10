@@ -160,6 +160,9 @@
   .chip .x{color:var(--faint);font-size:13px;margin-left:1px;opacity:.7;transition:.12s}
   .chip:hover .x{opacity:1}
   .chip .x:hover{color:var(--gold)}
+  .chip .scout{color:var(--faint);font-size:13px;margin-left:4px;opacity:.7;transition:.12s;cursor:pointer}
+  .chip:hover .scout{opacity:1}
+  .chip .scout:hover{color:var(--gold)}
   .addsrc{border-style:dashed}
 
   /* layout */
@@ -312,6 +315,7 @@
   .tclabel.proof{background:var(--gold);color:#241a06}
   .tclabel.aiproof{border:1px solid var(--gold);color:var(--gold);background:var(--gold-ghost)}
   .tclabel.ai{border:1px solid var(--border);color:var(--muted)}
+  .tclabel.scan{border:1px dashed var(--border);color:var(--faint)}
   .tcground{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:6px;
     padding-left:11px;border-left:2px solid var(--gold)}
   .tcground b{color:var(--gold);font-weight:600}

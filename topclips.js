@@ -15,6 +15,7 @@ window.TopClips = (function () {
   var bank = null;       // {patterns, niches, source:"live"|"snapshot", snapshotDate}
   var lastCandidates = null;
   var lastMeta = null;
+  var lastShown = [];
   // Top Posts: which candidate's compose panel is open (survives refresh()) and
   // the per-candidate drafts, both session-RAM only.
   var openPostKey = null;
@@ -210,10 +211,14 @@ window.TopClips = (function () {
     D.toast("Sent to BLAST");
   }
 
-  function scanLibrary(theBank, winners, settings, onProgress) {
+  function scanLibrary(theBank, winners, settings, onProgress, onlySrcId) {
     return new Promise(function (resolve) {
       var state = D.getState();
-      var enabled = state.sources.filter(function (s) { return state.enabled.indexOf(s.id) >= 0; });
+      // Scout mode scans one specific source (even if it isn't currently enabled);
+      // Top Clips scans all enabled sources.
+      var enabled = state.sources.filter(function (s) {
+        return onlySrcId ? s.id === onlySrcId : state.enabled.indexOf(s.id) >= 0;
+      });
       var flat = [];
       enabled.forEach(function (s) {
         s.segments.forEach(function (seg, idx) { flat.push({ s: s, seg: seg, idx: idx }); });
@@ -402,6 +407,7 @@ window.TopClips = (function () {
     proof: '<span class="tclabel proof">PROOF</span>',
     ai_proof: '<span class="tclabel aiproof">AI + PROOF</span>',
     ai: '<span class="tclabel ai">AI RECOMMENDED</span>',
+    scan: '<span class="tclabel scan">SCAN</span>',
   };
 
   function groundingHtml(c) {
@@ -447,11 +453,22 @@ window.TopClips = (function () {
     var results = document.querySelector("#results");
     var esc = D.esc;
     var shown = candidates.filter(function (c) { return c.label; }).slice(0, DISPLAY_CAP);
+    // In scout mode, a source may have no proven-pattern matches offline. Rather
+    // than show nothing, backfill with the most specific un-proven lines tagged
+    // SCAN, so the editor always gets a usable shot list.
+    if (meta.scout && shown.length < 10) {
+      var extra = candidates.filter(function (c) { return !c.label; }).slice(0, 10 - shown.length)
+        .map(function (c) { var d = {}; for (var k in c) d[k] = c[k]; d.label = "scan"; return d; });
+      shown = shown.concat(extra);
+    }
+    lastShown = shown;
     var head =
       '<div class="tchead">' +
       '<button class="tcback" id="tcback">← BACK TO SEARCH</button>' +
-      '<span class="tctitle">TOP CLIPS</span>' +
-      '<span class="tcmeta">' + shown.length + " candidates · pattern bank: " + meta.bankSource +
+      (shown.length ? '<button class="tcback" id="tccopy">⧉ COPY SHOT LIST</button>' : "") +
+      '<span class="tctitle">' + (meta.scout ? "SCOUT" : "TOP CLIPS") + "</span>" +
+      '<span class="tcmeta">' + (meta.scout && meta.scoutTitle ? esc(meta.scoutTitle) + " · " : "") +
+      shown.length + " candidates · pattern bank: " + meta.bankSource +
       (meta.bankSource === "snapshot" ? " (" + esc(meta.snapshotDate) + ")" : "") +
       " · ledger: " + ledgerLabel(meta) + "</span>" +
       ledgerHintHTML(meta) +
@@ -592,6 +609,34 @@ window.TopClips = (function () {
   function bindHead() {
     var back = document.querySelector("#tcback");
     if (back) back.addEventListener("click", function () { exit(); D.search(); });
+    var copy = document.querySelector("#tccopy");
+    if (copy) copy.addEventListener("click", function () {
+      var text = shotListText(lastShown, lastMeta);
+      if (!navigator.clipboard) { D.toast("Copy not supported here"); return; }
+      navigator.clipboard.writeText(text).then(function () { D.toast("Shot list copied — paste it into your editor"); })
+        .catch(function () { D.toast("Copy failed"); });
+    });
+  }
+  // Why this line is a candidate — plain text for the copied shot list.
+  function whyNote(c) {
+    if (c.match && c.match.kind === "ledger") return 'your proven winner: "' + c.match.hook + '"';
+    if (c.match && c.match.kind === "pattern") return "proven pattern: " + c.match.patternName;
+    if (c.grounding) return c.grounding;
+    if (c.reason) return c.reason;
+    return "specific, hook-shaped line";
+  }
+  function shotListText(shown, meta) {
+    var title = meta && meta.scout ? ("SCOUT — " + (meta.scoutTitle || "")) : "TOP CLIPS";
+    var lines = (shown || []).map(function (c) { return "[" + c.t + "] " + c.text + "  — " + whyNote(c); });
+    return title + "\n" + lines.join("\n") + "\n";
+  }
+  // Public: scan a single source and show its scout report.
+  function scout(srcId) {
+    var st = D.getState();
+    var src = null;
+    for (var i = 0; i < st.sources.length; i++) if (st.sources[i].id === srcId) src = st.sources[i];
+    if (!src) { D.toast("Source not found"); return; }
+    enter({ srcId: srcId, srcTitle: src.title });
   }
   function renderLoading(done, total) {
     document.querySelector("#results").innerHTML =
@@ -600,18 +645,21 @@ window.TopClips = (function () {
   }
 
   // --- mode control ---
-  function enter() {
+  function enter(opts) {
+    opts = opts || {};
     active = true;
+    var srcId = opts.srcId || null;
     var settings = D.loadSettings();
     renderLoading(0, 0);
     loadPatternBank().then(function (theBank) {
       var led = loadLedgerWinners();
-      return scanLibrary(theBank, led.winners, settings, renderLoading).then(function (cands) {
+      return scanLibrary(theBank, led.winners, settings, renderLoading, srcId).then(function (cands) {
         lastCandidates = cands;
         lastMeta = {
           bankSource: theBank.source, snapshotDate: theBank.snapshotDate,
           ledgerFound: led.found, ledgerReason: led.reason,
           winnerCount: led.winners.length, aiNote: "",
+          scout: !!srcId, scoutTitle: opts.srcTitle || "",
         };
         if (!active) return;
         var cfg = D.getProviderConfig();
@@ -654,5 +702,5 @@ window.TopClips = (function () {
     if (btn) btn.addEventListener("click", enter);
   }
 
-  return { init: init, isActive: isActive, refresh: refresh, exit: exit };
+  return { init: init, isActive: isActive, refresh: refresh, exit: exit, scout: scout };
 })();
