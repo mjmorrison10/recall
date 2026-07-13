@@ -143,9 +143,19 @@
     return data && data.file ? data.file : data;
   }
 
+  // The Files API returns a resource name that already looks like "files/abc-123";
+  // the REST path for files.get / files.delete is /v1beta/{name}. Appending the
+  // name to GEMINI_FILES_BASE (which already ends in "/files") and percent-encoding
+  // its slash produced /v1beta/files/files%2Fabc-123, which Gemini rejects with
+  // HTTP 400 — the "File status check failed" bug that broke every >14MB upload.
+  function geminiFileResourceUrl(fileName, apiKey) {
+    var name = /^files\//.test(fileName) ? fileName : "files/" + fileName;
+    return GEMINI_FILES_BASE.replace(/files$/, "") + name + "?key=" + encodeURIComponent(apiKey);
+  }
+
   async function waitForGeminiFileActive(fileName, apiKey) {
     var deadline = Date.now() + 120000;
-    var url = GEMINI_FILES_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey);
+    var url = geminiFileResourceUrl(fileName, apiKey);
     while (Date.now() < deadline) {
       var r = await fetch(url);
       if (!r.ok) throw new Error("File status check failed (HTTP " + r.status + ")");
@@ -160,7 +170,7 @@
   // Best-effort cleanup — files auto-expire after 48h anyway.
   async function deleteGeminiFile(fileName, apiKey) {
     try {
-      await fetch(GEMINI_FILES_BASE + "/" + encodeURIComponent(fileName) + "?key=" + encodeURIComponent(apiKey), { method: "DELETE" });
+      await fetch(geminiFileResourceUrl(fileName, apiKey), { method: "DELETE" });
     } catch (e) { /* silent */ }
   }
 
