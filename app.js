@@ -962,11 +962,68 @@
   var uploadzone = $("#uploadzone"),
       audiofile = $("#audiofile");
 
+  // What kind of file is this, really? The input's `accept` attribute is only
+  // a picker hint: drag-and-drop bypasses it entirely and "All files" defeats
+  // it in the dialog, so gate here, the one chokepoint both paths go through.
+  // A .txt that reached the transcribe call was sent to Gemini as fake "audio",
+  // burning quota and dying on MAX_TOKENS. Never again.
+  var MEDIA_EXTS = { mp3:1, m4a:1, wav:1, ogg:1, flac:1, aac:1, mp4:1, mov:1, webm:1, mpeg:1 };
+  var TEXT_EXTS = { txt:1, srt:1, vtt:1, md:1 };
+  function fileExt(name){ return (String(name || "").split(".").pop() || "").toLowerCase(); }
+  function fileKind(file){
+    var mime = file.type || "";
+    if (mime.indexOf("audio/") === 0 || mime.indexOf("video/") === 0) return "media";
+    if (mime.indexOf("text/") === 0) return "text";
+    var ext = fileExt(file.name);
+    if (MEDIA_EXTS[ext]) return "media";
+    if (TEXT_EXTS[ext]) return "text";
+    return "other";
+  }
+  function readAsText(file){
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result || "")); };
+      r.onerror = function () { reject(new Error("Could not read file")); };
+      r.readAsText(file);
+    });
+  }
+
   function setPendingFile(file){
     if (!file) { pendingFile = null; renderUploadZone(); return; }
     if (file.size > MAX_BYTES) {
       toast("File too large (" + fmtBytes(file.size) + " \u2014 max 2 GB). Split into smaller segments first.");
       audiofile.value = "";
+      return;
+    }
+    var kind = fileKind(file);
+    if (kind === "text") {
+      // A text file usually IS the transcript (TurboScribe .txt export, .srt).
+      // Load it into the transcript box and go through the free paste path:
+      // no API call, no tokens.
+      audiofile.value = "";
+      pendingFile = null;
+      readAsText(file).then(function (contents) {
+        mtext.value = contents;
+        if (mtitle && !mtitle.value.trim()) mtitle.value = deriveTitle(file.name);
+        renderUploadZone();
+        chk();
+        // After chk(): updateModalHint() would otherwise clear this message.
+        setModalStatus("hint", "That's a text file \u2014 loaded it as a transcript below (no API needed). Review and save.");
+      }).catch(function () {
+        setModalStatus("warn", "Couldn't read that file \u2014 try pasting the transcript instead");
+      });
+      return;
+    }
+    if (kind !== "media") {
+      audiofile.value = "";
+      pendingFile = null;
+      toast("That file type can't be transcribed \u2014 audio/video only");
+      renderUploadZone();
+      // Deferred a tick: the picker/drop handlers call chk() right after this
+      // returns, and chk() -> updateModalHint() would clear the message.
+      setTimeout(function () {
+        setModalStatus("warn", "RECALL can only transcribe audio or video (mp3, m4a, wav, mp4, mov, webm\u2026). For a text transcript, paste it or drop a .txt.");
+      }, 0);
       return;
     }
     pendingFile = file;
@@ -987,7 +1044,7 @@
         '<div class="pick">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
         'Choose audio or video file</div>' +
-        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to 2 GB</div>';
+        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to 2 GB \u00b7 a .txt transcript loads as text, no API</div>';
       return;
     }
     uploadzone.classList.add("has-file");
@@ -1021,17 +1078,26 @@
 
   // File mime drives which OpenRouter content part llm.js uses, and
   // whether OpenRouter is even eligible (video is Gemini-only there).
+  // Returns null for anything that isn't real media — callers must not
+  // send those to a provider (defaulting unknowns to "audio" is how a .txt
+  // once reached Gemini and burned quota).
   function mediaKindOf(file){
+    if (fileKind(file) !== "media") return null;
     var mime = file.type || "";
-    return mime.indexOf("video/") === 0 ? "video" : "audio";
+    if (mime.indexOf("video/") === 0) return "video";
+    if (mime.indexOf("audio/") === 0) return "audio";
+    var ext = fileExt(file.name);
+    return (ext === "mp4" || ext === "mov" || ext === "webm") ? "video" : "audio";
   }
 
   async function transcribe(file, onPhase){
+    var kind = mediaKindOf(file);
+    if (!kind) throw new Error("That file type can't be transcribed — audio/video only. For a text transcript, paste it instead.");
     return window.LLMProvider.generateFromMedia(getProviderConfig(), {
       file: file,
       prompt: TRANSCRIBE_PROMPT,
       maxTokens: 16000,
-      mediaKind: mediaKindOf(file),
+      mediaKind: kind,
       onPhase: onPhase,
     });
   }
