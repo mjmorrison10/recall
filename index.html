@@ -101,6 +101,8 @@
         <textarea id="mtext" placeholder="[00:01:23] Paste a timestamped transcript here...
 [00:01:41] One line per moment, each starting with a timecode.
 2:05 Bare timecodes work too — brackets optional."></textarea></div>
+      <p class="hint" style="margin:6px 0 2px;color:var(--gold)">🎙️ <b>No API key needed:</b> transcribe your audio or video free at
+        <a href="https://turboscribe.ai/dashboard" target="_blank" rel="noopener">TurboScribe</a>, then paste the transcript here. RECALL reads its format directly.</p>
       <p class="hint">Each moment led by a timecode like <b>[00:01:23]</b>, <b>1:23</b>, or <b>01:23:45</b>.
         TurboScribe-style range headers — <b>(0:04 - 0:23)</b> with the text on the next line — work too;
         long blocks are split into sentences automatically. Lines without a timecode attach to the one
@@ -118,7 +120,8 @@
            innerHTML on every open, which would otherwise detach this input. -->
       <input type="file" id="audiofile" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.ogg,.flac" style="display:none">
       <p class="privacy"><b>Audio is sent to Google for transcription.</b> Your transcripts stay on this
-        device and never leave it. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Need a key?</a></p>
+        device and never leave it. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Need a key?</a>
+        No key? <a href="https://turboscribe.ai/dashboard" target="_blank" rel="noopener">Transcribe free with TurboScribe</a> and paste it above.</p>
     </div>
     <div class="mfoot">
       <div class="mstatus" id="mstatus" role="status" aria-live="polite"></div>
