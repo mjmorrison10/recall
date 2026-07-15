@@ -303,6 +303,7 @@
         '<div class="btx">'+esc(b.text)+'</div>'+
         '<div class="bsrc">'+esc(b.srcTitle)+'</div></div>'+
         '<div class="bacts">'+
+        '<button class="bblast" data-bb="'+b.key+'" title="Send to BLAST as the post caption" aria-label="Send to BLAST">→B</button>'+
         '<button class="edit" data-ek="'+b.key+'" aria-label="Edit text">✎</button>'+
         '<button class="rm" data-k="'+b.key+'" aria-label="Remove">&times;</button></div></div>';
     }).join("");
@@ -310,6 +311,20 @@
       btn.addEventListener("click",function(){
         state.bin=state.bin.filter(function(b){return b.key!==btn.dataset.k});
         save();search();renderBin();
+      });
+    });
+    // Per-clip handoff to BLAST: same blast_handoff_v1 contract as the Top
+    // Clips POST panel (BLAST reads only {caption}); written here directly so
+    // the app.js -> TopClips dependency arrow stays one-directional.
+    binlist.querySelectorAll(".bblast").forEach(function(btn){
+      btn.addEventListener("click",function(){
+        var b=state.bin.find(function(v){return v.key===btn.dataset.bb});
+        if(!b)return;
+        try{
+          localStorage.setItem("blast_handoff_v1",JSON.stringify({caption:b.text,source:"recall-bin",createdAt:Date.now()}));
+        }catch(e){ toast("Couldn't hand off (storage full?)"); return; }
+        window.open(new URL("../blast/",location.href).href,"_blank","noopener");
+        toast("Sent to BLAST");
       });
     });
     binlist.querySelectorAll(".edit").forEach(function(btn){
@@ -344,11 +359,20 @@
         if(e.target.dataset.scout)return;
         if(e.target.dataset.ren)return;
         var id=c.dataset.id, at=state.enabled.indexOf(id);
+        var turningOn=at<0;
         if(at>=0)state.enabled.splice(at,1);else state.enabled.push(id);
         // renderChips() so the chip's on/off color updates immediately — every
         // other chip handler re-renders; the toggle was the one that didn't,
         // so the color only changed after a manual reload.
-        save();renderChips();search();
+        save();renderChips();
+        // Toggling a source ON auto-opens its saved Top Clips (if a scan was
+        // persisted). search() would exit() that view, so skip it here;
+        // toggling OFF (or no saved scan) keeps the normal search teardown.
+        if(turningOn && window.TopClips && window.TopClips.hasSaved && window.TopClips.hasSaved(id)){
+          window.TopClips.showSaved(id);
+        } else {
+          search();
+        }
       });
     });
     chips.querySelectorAll("[data-del]").forEach(function(x){
@@ -359,6 +383,7 @@
         state.sources=state.sources.filter(function(v){return v.id!==id});
         state.enabled=state.enabled.filter(function(v){return v!==id});
         state.bin=state.bin.filter(function(b){return b.srcId!==id});
+        if(window.TopClips && window.TopClips.dropSaved) window.TopClips.dropSaved(id);
         save();renderChips();search();renderBin();
       });
     });
@@ -373,6 +398,7 @@
         if(!name)return;
         s.title=name;
         state.bin.forEach(function(b){if(b.srcId===id)b.srcTitle=name;});
+        if(window.TopClips && window.TopClips.renameSaved) window.TopClips.renameSaved(id,name);
         save();renderChips();renderBin();search();
       });
     });

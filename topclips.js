@@ -20,6 +20,51 @@ window.TopClips = (function () {
   // the per-candidate drafts, both session-RAM only.
   var openPostKey = null;
   var postDrafts = Object.create(null); // key -> {x, threads, mode:"quote"|"ai"}
+  // Run-sequence token: a still-in-flight old scan (user hit Back mid-pass,
+  // then opened a saved view) must not clobber the current view or persist
+  // under the wrong source. enter() captures ++runSeq; every async
+  // continuation checks it; exit()/showSaved() bump it to invalidate.
+  var runSeq = 0;
+
+  // --- persisted scan results (localStorage; survives reload/toggle) ---
+  // { [srcId]: {savedAt, meta, candidates} }. Candidates are pure JSON
+  // (verified: no closures), so a saved entry cold-renders via renderTopClips.
+  // The stack backup sweeps recall_* keys, so this rides along automatically.
+  var STORE_KEY = "recall_topclips_v1";
+  var storeWarned = false;
+  function readStore() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function writeStore(obj) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); return true; }
+    catch (e) {
+      if (!storeWarned && D) { storeWarned = true; D.toast("Couldn't save scan results (storage full?)"); }
+      return false;
+    }
+  }
+  // Persist one source's run. Meta is a cleaned copy: transient aiNote
+  // stripped, normalized to scout shape so saved views render uniformly.
+  function persistRun(srcId, srcTitle, candidates, meta) {
+    if (!srcId) return;
+    var m = {};
+    for (var k in meta) m[k] = meta[k];
+    m.aiNote = "";
+    m.scout = true;
+    m.scoutTitle = srcTitle || m.scoutTitle || "";
+    m.scoutSrcId = srcId;
+    var store = readStore();
+    store[srcId] = { savedAt: Date.now(), meta: m, candidates: candidates };
+    writeStore(store);
+  }
+  function relTime(ts) {
+    var m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + "m ago";
+    var h = Math.round(m / 60);
+    if (h < 48) return h + "h ago";
+    return Math.round(h / 24) + "d ago";
+  }
 
   // --- pure helpers (tokens/jaccard/specificity adapted from Hooklabs/app.js:124-150) ---
   function tokens(s) {
@@ -468,11 +513,15 @@ window.TopClips = (function () {
       '<div class="tchead">' +
       '<button class="tcback" id="tcback">← BACK TO SEARCH</button>' +
       (shown.length ? '<button class="tcback" id="tccopy">⧉ COPY SHOT LIST</button>' : "") +
+      (meta.scout && meta.scoutSrcId
+        ? '<button class="tcback" id="tcrescan">⟳ RE-SCAN' + (hasKey(D.getProviderConfig()) ? " (uses AI)" : "") + "</button>"
+        : "") +
       '<span class="tctitle">' + (meta.scout ? "SCOUT" : "TOP CLIPS") + "</span>" +
       '<span class="tcmeta">' + (meta.scout && meta.scoutTitle ? esc(meta.scoutTitle) + " · " : "") +
       shown.length + " candidates · pattern bank: " + meta.bankSource +
       (meta.bankSource === "snapshot" ? " (" + esc(meta.snapshotDate) + ")" : "") +
-      " · ledger: " + ledgerLabel(meta) + "</span>" +
+      " · ledger: " + ledgerLabel(meta) +
+      (meta.savedAt ? " · scanned " + relTime(meta.savedAt) : "") + "</span>" +
       ledgerHintHTML(meta) +
       (meta.aiNote ? '<div class="tchint">' + esc(meta.aiNote) + "</div>" : "") +
       "</div>" +
@@ -611,6 +660,10 @@ window.TopClips = (function () {
   function bindHead() {
     var back = document.querySelector("#tcback");
     if (back) back.addEventListener("click", function () { exit(); D.search(); });
+    var rescan = document.querySelector("#tcrescan");
+    if (rescan) rescan.addEventListener("click", function () {
+      if (lastMeta && lastMeta.scoutSrcId) scout(lastMeta.scoutSrcId);
+    });
     var copy = document.querySelector("#tccopy");
     if (copy) copy.addEventListener("click", function () {
       var text = shotListText(lastShown, lastMeta);
@@ -650,20 +703,37 @@ window.TopClips = (function () {
   function enter(opts) {
     opts = opts || {};
     active = true;
+    var myRun = ++runSeq;
     var srcId = opts.srcId || null;
     var settings = D.loadSettings();
     renderLoading(0, 0);
+    // Persist target: scout runs always; a global run only when exactly one
+    // source is enabled (then it's equivalent to a scout of that source).
+    // Multi-source global rankings would mislead as a per-source cache.
+    var st0 = D.getState();
+    var persistId = srcId || (st0.enabled.length === 1 ? st0.enabled[0] : null);
+    var persistTitle = opts.srcTitle || "";
+    if (persistId && !persistTitle) {
+      for (var pi = 0; pi < st0.sources.length; pi++) {
+        if (st0.sources[pi].id === persistId) { persistTitle = st0.sources[pi].title; break; }
+      }
+    }
     loadPatternBank().then(function (theBank) {
       var led = loadLedgerWinners();
       return scanLibrary(theBank, led.winners, settings, renderLoading, srcId).then(function (cands) {
-        lastCandidates = cands;
-        lastMeta = {
+        var meta = {
           bankSource: theBank.source, snapshotDate: theBank.snapshotDate,
           ledgerFound: led.found, ledgerReason: led.reason,
           winnerCount: led.winners.length, aiNote: "",
           scout: !!srcId, scoutTitle: opts.srcTitle || "",
+          scoutSrcId: srcId || persistId || null,
         };
-        if (!active) return;
+        // Persist the free offline scan BEFORE the liveness guard — an early
+        // Back must not throw the results away.
+        persistRun(persistId, persistTitle, cands, meta);
+        if (!active || myRun !== runSeq) return;
+        lastCandidates = cands;
+        lastMeta = meta;
         var cfg = D.getProviderConfig();
         if (!hasKey(cfg)) {
           lastMeta.aiNote = "Offline mode — add an API key in Settings to unlock AI + PROOF and AI RECOMMENDED candidates.";
@@ -673,13 +743,16 @@ window.TopClips = (function () {
         lastMeta.aiNote = "AI pass running…";
         renderTopClips(lastCandidates, lastMeta);
         return aiPass(lastCandidates, theBank, led.winners, settings).then(function (merged) {
-          if (!active) return;
+          // Persist BEFORE the guard: the AI tokens are already spent, so the
+          // merged results must survive even if the user navigated away.
+          persistRun(persistId, persistTitle, merged, meta);
+          if (!active || myRun !== runSeq) return;
           lastCandidates = merged;
           lastMeta.aiNote = "";
           renderTopClips(lastCandidates, lastMeta);
         }).catch(function (err) {
           console.warn("topclips ai pass:", err);
-          if (!active) return;
+          if (!active || myRun !== runSeq) return;
           lastMeta.aiNote = "AI pass failed (" + (err && err.message || "error") + ") — showing offline PROOF results.";
           renderTopClips(lastCandidates, lastMeta);
           D.toast("Top Clips AI pass failed — offline results shown");
@@ -692,17 +765,62 @@ window.TopClips = (function () {
       D.search();
     });
   }
-  function exit() { active = false; openPostKey = null; }
+  function exit() { active = false; openPostKey = null; runSeq++; }
   function isActive() { return active; }
   function refresh() {
     if (active && lastCandidates) renderTopClips(lastCandidates, lastMeta);
+  }
+
+  // --- saved-view API (used by app.js chips) ---
+  function hasSaved(srcId) { return !!readStore()[srcId]; }
+  // Cold-render a persisted scan. No network, no bank load — renderTopClips
+  // reads only serializable candidate fields + injected deps.
+  function showSaved(srcId) {
+    var entry = readStore()[srcId];
+    if (!entry) return false;
+    runSeq++;               // invalidate any in-flight scan's continuations
+    active = true;
+    openPostKey = null;
+    lastCandidates = entry.candidates;
+    lastMeta = {};
+    for (var k in entry.meta) lastMeta[k] = entry.meta[k];
+    lastMeta.savedAt = entry.savedAt;
+    lastMeta.aiNote = "Saved scan from " + relTime(entry.savedAt) + " — results are frozen until you RE-SCAN.";
+    renderTopClips(lastCandidates, lastMeta);
+    return true;
+  }
+  function dropSaved(srcId) {
+    var store = readStore();
+    if (!(srcId in store)) return;
+    delete store[srcId];
+    writeStore(store);
+  }
+  function renameSaved(srcId, title) {
+    var store = readStore();
+    var entry = store[srcId];
+    if (!entry) return;
+    if (entry.meta) entry.meta.scoutTitle = title;
+    (entry.candidates || []).forEach(function (c) { c.srcTitle = title; });
+    writeStore(store);
   }
 
   function init(deps) {
     D = deps;
     var btn = document.querySelector("#topclips");
     if (btn) btn.addEventListener("click", enter);
+    // Orphan GC: a RECALL library "replace" import swaps state.sources without
+    // touching this store — sweep entries whose source no longer exists.
+    try {
+      var st = D.getState(), store = readStore(), changed = false;
+      var ids = Object.create(null);
+      st.sources.forEach(function (s) { ids[s.id] = 1; });
+      Object.keys(store).forEach(function (id) {
+        if (!ids[id]) { delete store[id]; changed = true; }
+      });
+      if (changed) writeStore(store);
+    } catch (e) { /* GC is best-effort */ }
   }
 
-  return { init: init, isActive: isActive, refresh: refresh, exit: exit, scout: scout };
+  return { init: init, isActive: isActive, refresh: refresh, exit: exit, scout: scout,
+           hasSaved: hasSaved, showSaved: showSaved, dropSaved: dropSaved, renameSaved: renameSaved };
 })();
