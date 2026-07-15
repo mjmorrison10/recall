@@ -241,6 +241,9 @@
   .binitem .edit{flex:none;background:none;border:none;color:var(--faint);cursor:pointer;font-size:12px;
     padding:0 3px;align-self:flex-start}
   .binitem .edit:hover{color:var(--gold)}
+  .binitem .bblast{flex:none;background:none;border:none;color:var(--faint);cursor:pointer;font-size:11px;
+    font-family:var(--mono);padding:0 3px;align-self:flex-start;letter-spacing:.03em}
+  .binitem .bblast:hover{color:var(--gold)}
   .binempty{padding:26px 18px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
   .binempty .k{font-family:var(--mono);color:var(--pos);font-size:12px}
 
