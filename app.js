@@ -345,7 +345,10 @@
         if(e.target.dataset.ren)return;
         var id=c.dataset.id, at=state.enabled.indexOf(id);
         if(at>=0)state.enabled.splice(at,1);else state.enabled.push(id);
-        save();search();
+        // renderChips() so the chip's on/off color updates immediately — every
+        // other chip handler re-renders; the toggle was the one that didn't,
+        // so the color only changed after a manual reload.
+        save();renderChips();search();
       });
     });
     chips.querySelectorAll("[data-del]").forEach(function(x){

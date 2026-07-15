@@ -120,7 +120,9 @@ window.TopClips = (function () {
   // --- offline scan ---
   var LEDGER_SIM = 0.55;      // near-verbatim reuse of a proven hook
   var SKEL_CONTAIN = 0.75;    // scaffold skeleton mostly present in the line
-  var AI_FEED_CAP = 80;
+  var AI_FEED_CAP = 45;   // candidates fed to the AI pass. Kept modest so the
+                          // labeled JSON the model returns fits the output cap
+                          // below (80 could overflow -> MAX_TOKENS / empty).
   var DISPLAY_CAP = 20;
 
   // --- Top Posts: turn a candidate into an X/Threads text post ---
@@ -390,7 +392,7 @@ window.TopClips = (function () {
   function aiPass(candidates, theBank, winners, settings) {
     var prompt = buildAIPrompt(candidates, theBank, winners, settings);
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 3000,
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 8000,
     }).then(function (text) {
       var parsed;
       try { parsed = JSON.parse(text); }
