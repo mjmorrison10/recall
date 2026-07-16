@@ -380,6 +380,7 @@
         e.stopPropagation();var id=x.dataset.del;
         var s=state.sources.find(function(v){return v.id===id});
         if(!confirm("Remove “"+s.title+"” from your library?"))return;
+        if(window.StackData) StackData.tombstone("recallSource", id);
         state.sources=state.sources.filter(function(v){return v.id!==id});
         state.enabled=state.enabled.filter(function(v){return v!==id});
         state.bin=state.bin.filter(function(b){return b.srcId!==id});
@@ -814,6 +815,7 @@
       if (f) window.StackData.importFromFile(f, toast);
       e.target.value = "";
     });
+    window.StackData.bindSyncUI(toast);
   })();
 
   // === Library export / import ===

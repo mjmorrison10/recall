@@ -228,6 +228,13 @@
           <input type="file" id="stackfile" accept="application/json,.json" style="display:none">
         </div>
         <div class="keystatus empty" id="stackstatus">Covers RECALL · HOOKLAB · BLAST · PULSE.</div>
+        <div class="keyrow" style="margin-top:10px">
+          <button id="stacksync" type="button" class="primary">Sync Google Drive</button>
+          <button id="stackmerge" type="button">Merge a file…</button>
+          <input type="file" id="stackmergefile" accept="application/json,.json" style="display:none">
+        </div>
+        <p class="hint" style="margin:8px 0 4px">Sync keeps this device and your phone in step through <b>your own</b> Google Drive (it only ever touches the one file it creates, and never uploads your API keys). Merge folds another backup in without deleting anything.</p>
+        <div class="keystatus empty" id="syncstatus"></div>
       </div>
     </div>
     <div class="mfoot">
