@@ -437,7 +437,7 @@ window.TopClips = (function () {
   function aiPass(candidates, theBank, winners, settings) {
     var prompt = buildAIPrompt(candidates, theBank, winners, settings);
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 8000,
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 4000,
     }).then(function (text) {
       var parsed;
       try { parsed = JSON.parse(text); }
