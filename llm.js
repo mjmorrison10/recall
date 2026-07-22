@@ -198,7 +198,7 @@
   }
 
   async function geminiGenerateText(apiKey, opts) {
-    var generationConfig = { temperature: opts.temperature != null ? opts.temperature : 0.4 };
+    var generationConfig = { temperature: opts.temperature != null ? opts.temperature : 0.4, thinkingConfig: { thinkingBudget: 0 } };
     if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
     if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {
@@ -241,7 +241,7 @@
     onPhase("Analyzing");
     await yield_();
     try {
-      var generationConfig = { temperature: 0.1 };
+      var generationConfig = { temperature: 0.1, thinkingConfig: { thinkingBudget: 0 } };
       if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
       if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
       var res = await fetchWithRetry(function () {
