@@ -111,8 +111,76 @@
     }
     return out;
   }
+  // ── Format-aware parsing ────────────────────────────────────────────
+  // TurboScribe (and most tools) can export richer timing than the paragraph
+  // format: SRT/VTT cues (~2s each, but text fragmented mid-sentence) and an
+  // inline "(0:00) text (0:04) text" web-copy format (~4s, sentences intact).
+  // Detect which was pasted and route to a dedicated parser; anything else
+  // falls through to the original line-by-line engine.
+  function stripNoise(raw){ return String(raw).replace(/\(Transcribed by TurboScribe[^)]*\)/ig,""); }
+  var INLINE_STAMP_RE = /\(\d{1,2}:\d{2}(?::\d{2})?\)\s*(?=\S)/g; // (0:00) immediately followed by text
+  function detectFormat(raw){
+    if(raw.indexOf("-->") !== -1) return "srt";              // SRT/VTT timing arrow
+    var m = raw.match(INLINE_STAMP_RE);
+    if(m && m.length >= 3) return "inline";                  // (0:00) text (0:04) text
+    return "legacy";
+  }
+  // Merge ordered {sec,t,text} fragments into full sentences, each anchored to
+  // the timestamp of the fragment where the sentence STARTED. This is what gives
+  // SRT both fine timestamps AND cross-fragment search context (an SRT cue
+  // usually ends mid-sentence, so raw cues would break phrase search).
+  function mergeToSentences(frags){
+    var out = [], buf = "", bufw = 0, startSec = 0, startT = "";
+    function flush(){ var txt = cleanLine(buf); if(txt) out.push({t:startT, sec:startSec, text:txt}); buf=""; bufw=0; }
+    for(var i=0;i<frags.length;i++){
+      var piece = String(frags[i].text||"").trim(); if(!piece) continue;
+      if(!buf){ startSec = frags[i].sec; startT = frags[i].t; }
+      buf = buf ? buf + " " + piece : piece;
+      bufw += wordCountOf(piece);
+      if(/[.!?]["')\]]?$/.test(piece) || bufw >= SEG_MAX_WORDS) flush();
+    }
+    flush();
+    return out;
+  }
+  // SRT / WebVTT cue blocks → fragments → sentence-merge → long-split.
+  function parseSRT(raw){
+    var text = stripNoise(raw).replace(/^﻿/,"").replace(/\r/g,"");
+    var blocks = text.split(/\n\s*\n/), frags = [];
+    for(var b=0;b<blocks.length;b++){
+      var lines = blocks[b].split("\n"), start = null, textLines = [];
+      for(var i=0;i<lines.length;i++){
+        var ln = lines[i].trim(); if(!ln) continue;
+        if(/^WEBVTT/i.test(ln) || /^NOTE\b/i.test(ln)){ start = null; textLines = []; break; }
+        if(start === null && ln.indexOf("-->") !== -1){
+          var mm = ln.match(/(\d{1,2}:\d{2}(?::\d{2})?)[.,]?\d*\s*-->/);
+          if(mm){ start = mm[1]; continue; }
+        }
+        if(start === null && /^\d+$/.test(ln)) continue;     // cue sequence number
+        if(start !== null) textLines.push(ln);
+      }
+      if(start !== null && textLines.length){
+        var t = textLines.join(" ").replace(/<[^>]+>/g,"").trim();
+        if(t) frags.push({sec:toSec(start), t:norm(start), text:t});
+      }
+    }
+    return splitLongSegments(mergeToSentences(frags));
+  }
+  // TurboScribe inline "(0:00) text (0:04) text" → fragments → sentence-merge.
+  function parseInline(raw){
+    var text = stripNoise(raw).replace(/\s+/g," "), frags = [], m, last = null, lastIdx = 0;
+    var re = /\((\d{1,2}:\d{2}(?::\d{2})?)\)/g;
+    while((m = re.exec(text))){
+      if(last !== null){ var chunk = text.slice(lastIdx, m.index).trim(); if(chunk) frags.push({sec:toSec(last), t:norm(last), text:chunk}); }
+      last = m[1]; lastIdx = re.lastIndex;
+    }
+    if(last !== null){ var tail = text.slice(lastIdx).trim(); if(tail) frags.push({sec:toSec(last), t:norm(last), text:tail}); }
+    return splitLongSegments(mergeToSentences(frags));
+  }
   function parse(raw){
-    var out=[],lines=raw.split("\n");
+    var fmt = detectFormat(raw);
+    if(fmt === "srt") return parseSRT(raw);
+    if(fmt === "inline") return parseInline(raw);
+    var out=[],lines=stripNoise(raw).split("\n");
     for(var i=0;i<lines.length;i++){
       var ln=lines[i].trim(); if(!ln)continue;
       pushLine(out, ln);
@@ -543,7 +611,12 @@
   // responsive on hour-long transcripts instead of locking the main thread.
   function parseChunked(raw, onProgress){
     return new Promise(function(resolve){
-      var lines = raw.split("\n");
+      // SRT/inline are a fast single-pass regex parse (no per-line streaming
+      // needed); only the legacy line format uses the chunked yield loop.
+      var fmt = detectFormat(raw);
+      if(fmt === "srt"){ if(onProgress) onProgress(1,1); resolve(parseSRT(raw)); return; }
+      if(fmt === "inline"){ if(onProgress) onProgress(1,1); resolve(parseInline(raw)); return; }
+      var lines = stripNoise(raw).split("\n");
       var CHUNK = 500;
       var out = [];
       var i = 0;

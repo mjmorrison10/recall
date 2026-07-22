@@ -103,10 +103,12 @@
 2:05 Bare timecodes work too — brackets optional."></textarea></div>
       <p class="hint" style="margin:6px 0 2px;color:var(--gold)">🎙️ <b>No API key needed:</b> transcribe your audio or video free at
         <a href="https://turboscribe.ai/dashboard" target="_blank" rel="noopener">TurboScribe</a>, then paste the transcript here. RECALL reads its format directly.</p>
-      <p class="hint">Each moment led by a timecode like <b>[00:01:23]</b>, <b>1:23</b>, or <b>01:23:45</b>.
-        TurboScribe-style range headers — <b>(0:04 - 0:23)</b> with the text on the next line — work too;
-        long blocks are split into sentences automatically. Lines without a timecode attach to the one
-        above. Your library is saved on this device — it grows every time you add a source.</p>
+      <p class="hint">Paste any of these and RECALL detects the format automatically:
+        <b>SRT/VTT</b> subtitle files (most precise hook timestamps — fragmented cues are re-joined
+        into full sentences), TurboScribe's inline <b>(0:04)</b> format, plain leading timecodes like
+        <b>[00:01:23]</b> / <b>1:23</b>, or range headers <b>(0:04 - 0:23)</b> with text on the next line.
+        Long blocks split into sentences automatically. Your library is saved on this device — it grows
+        every time you add a source.</p>
 
       <div class="divider">OR</div>
       <div class="uploadzone" id="uploadzone" role="button" tabindex="0">
@@ -114,7 +116,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Choose audio or video file
         </div>
-        <div class="hint">mp3 · m4a · wav · mp4 · mov · webm — up to 2 GB. <b>Audio-only is fastest.</b> Drop a .txt transcript here and it loads as text, no API needed.</div>
+        <div class="hint">mp3 · m4a · wav · mp4 · mov · webm — up to 2 GB. <b>Audio-only is fastest.</b> Drop a .txt, .srt, or .vtt transcript here and it loads as text, no API needed.</div>
       </div>
       <!-- Kept OUTSIDE #uploadzone: renderUploadZone() rewrites the zone's
            innerHTML on every open, which would otherwise detach this input. -->
