@@ -419,8 +419,8 @@
         '<span class="ren" data-ren="'+s.id+'" title="Rename source">✎</span>'+
         '<span class="x" data-del="'+s.id+'" title="Remove source">×</span></span>';
     }).join("");
-    html+='<span class="chip addsrc" id="addchip">+ add source</span>';
     chips.innerHTML=html;
+    updateSrcToggle();
     chips.querySelectorAll(".chip[data-id]").forEach(function(c){
       c.addEventListener("click",function(e){
         if(e.target.dataset.del)return;
@@ -477,8 +477,30 @@
         if(window.TopClips && window.TopClips.scout) window.TopClips.scout(el.dataset.scout);
       });
     });
-    $("#addchip").addEventListener("click",openModal);
   }
+
+  // Source tray collapse — #addchip + #srctoggle are now static (bound once
+  // here, not rebuilt per render). Tray is capped + scrollable in CSS; this
+  // just hides/shows it and persists the choice. Default: collapsed on phones.
+  var UI_KEY = "recall_ui_v1";
+  var chipsCollapsed = (function(){
+    try{ var v=JSON.parse(localStorage.getItem(UI_KEY)||"null");
+      if(v && typeof v.chipsCollapsed==="boolean") return v.chipsCollapsed; }catch(e){}
+    return !!(window.matchMedia && window.matchMedia("(max-width:860px)").matches);
+  })();
+  function updateSrcToggle(){
+    var t=$("#srctoggle"); if(!t)return;
+    t.textContent=(chipsCollapsed?"▸":"▾")+" sources "+state.enabled.length+"/"+state.sources.length;
+    t.setAttribute("aria-expanded", String(!chipsCollapsed));
+  }
+  function applyChipsCollapsed(){ chips.classList.toggle("collapsed", chipsCollapsed); updateSrcToggle(); }
+  $("#srctoggle").addEventListener("click",function(){
+    chipsCollapsed=!chipsCollapsed;
+    try{ localStorage.setItem(UI_KEY, JSON.stringify({chipsCollapsed:chipsCollapsed})); }catch(e){}
+    applyChipsCollapsed();
+  });
+  $("#addchip").addEventListener("click",openModal);
+  applyChipsCollapsed();
 
   if(clearBtn)clearBtn.addEventListener("click",function(){
     if(!state.bin.length)return;

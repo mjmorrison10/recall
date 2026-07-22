@@ -120,7 +120,7 @@
   .lede b{color:var(--ink);font-weight:600}
 
   /* search */
-  .searchrow{position:sticky;top:0;z-index:20;background:linear-gradient(var(--ground) 72%,transparent);
+  .searchrow{position:sticky;top:0;z-index:20;background:var(--ground);
     padding-top:6px;padding-bottom:12px}
   .searchbox{display:flex;align-items:center;gap:10px;background:var(--surface);
     border:1px solid var(--border);border-radius:13px;padding:13px 15px;box-shadow:var(--shadow);
@@ -167,6 +167,15 @@
   .chip:hover .ren{opacity:1}
   .chip .ren:hover{color:var(--gold)}
   .addsrc{border-style:dashed}
+  /* Bounded, scrollable source tray — keeps the sticky header from growing
+     past the viewport (was overlapping the footer on mobile with many
+     sources). Collapsed by default on phones; toggled by #srctoggle. */
+  .chiptray{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:10px;
+    max-height:96px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .chiptray.collapsed{display:none}
+  @media(min-width:861px){.chiptray{max-height:150px}}
+  .srctoggle{opacity:1;border-style:solid;color:var(--ink);border-color:var(--border)}
+  .srctoggle:hover{opacity:1;border-color:var(--gold);color:var(--ink)}
 
   /* layout */
   .cols{display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start;margin-top:6px}
