@@ -198,6 +198,7 @@ window.TopClips = (function () {
                           // labeled JSON the model returns fits the output cap
                           // below (80 could overflow -> MAX_TOKENS / empty).
   var DISPLAY_CAP = 20;
+  var PROOF_DISPLAY_MAX = 12; // when AI cards exist, cap proofs so they can't fill every slot
 
   // --- Top Posts: turn a candidate into an X/Threads text post ---
   var POST_LIMITS = { x: 280, threads: 500 };
@@ -421,7 +422,8 @@ window.TopClips = (function () {
       '   "reason" explains the judgment in one short sentence.\n' +
       '3. "proof" is ONLY for echoing candidates already marked offlineProof:true — echo every\n' +
       '   one you keep as "proof" WITH a "hook" (below), never omit or downgrade it. Label your\n' +
-      '   OWN new picks "ai" or "ai_proof", never "proof".\n' +
+      '   OWN new picks "ai" or "ai_proof", never "proof". Echoed proof lines do NOT count\n' +
+      "   toward the selection limit below.\n" +
       "4. Prefer lines fitting the channel niche and voice.\n" +
       '5. "prev"/"next" are the neighboring transcript lines — CONTEXT ONLY, to judge whether\n' +
       "   the candidate line opens the thought or lands mid-stream. Never label prev/next.\n" +
@@ -433,7 +435,8 @@ window.TopClips = (function () {
       '   REQUIRED whenever "noisy" is true or any part of the line is filler or garbage; it is\n' +
       "   optional only when the whole line is already clean and sharp end to end.\n" +
       '6. "i" MUST be the integer index of the candidate as a JSON number (0, 1, 2 — not "0").\n' +
-      "7. Select at most 20 total. Return strict JSON only.\n" +
+      '7. Select up to 20 NEW clips (label "ai" or "ai_proof") from candidates with\n' +
+      "   offlineProof:false, IN ADDITION TO the proof echoes above. Return strict JSON only.\n" +
       "Context: " + JSON.stringify(payload) + "\n" +
       'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":"","hook":""}]}'
     );
@@ -447,7 +450,7 @@ window.TopClips = (function () {
   }
   function mergeAIResults(candidates, parsed, theBank, winners) {
     var clips = (parsed && parsed.clips) || [];
-    var stats = { returned: clips.length, aiAdded: 0, hooksAdded: 0, badIndex: 0, badLabel: 0 };
+    var stats = { returned: clips.length, aiAdded: 0, hooksAdded: 0, hookRejected: 0, proofEchoes: 0, badIndex: 0, badLabel: 0 };
     var byIdx = Object.create(null);
     clips.forEach(function (cl) {
       // Coerce the index — Gemini frequently returns "i":"0" (a string).
@@ -455,21 +458,31 @@ window.TopClips = (function () {
       if (!isFinite(idx) || idx < 0 || idx >= candidates.length) { stats.badIndex++; return; }
       byIdx[idx] = cl;
     });
-    function normWS(s) { return String(s).replace(/\s+/g, " ").trim(); }
-    // The AI may point at the sharpest hook INSIDE a line, but only verbatim:
-    // an exact substring, at least 3 words, strictly shorter than the line.
-    // Anything else is silently ignored and the card shows the full text.
+    // Length-preserving normalization for MATCHING only (case + curly→straight
+    // quotes). 1:1 char swaps keep offsets valid, so we can locate a
+    // case-shifted / smart-quoted hook and slice the ORIGINAL text at the same
+    // position — the stored hookText stays verbatim from the segment.
+    function normMatch(s) { return String(s).toLowerCase().replace(/[’‘]/g, "'").replace(/[“”]/g, '"'); }
     function acceptHook(c, cl) {
-      if (!cl || typeof cl.hook !== "string") return;
-      var h = normWS(cl.hook);
-      if (h && h.length < normWS(c.text).length && wordCount(h) >= 3 &&
-          c.text.indexOf(h) !== -1 && !c.hookText) { c.hookText = h; stats.hooksAdded++; }
+      if (!cl || typeof cl.hook !== "string" || !cl.hook.trim()) return;
+      var h = cl.hook.trim();
+      var textN = normMatch(c.text), hN = normMatch(h);
+      var at = textN.indexOf(hN);
+      if (hN.length < textN.length && wordCount(h) >= 3 && at !== -1 && !c.hookText) {
+        c.hookText = c.text.slice(at, at + hN.length); // verbatim from the segment
+        stats.hooksAdded++;
+      } else {
+        stats.hookRejected++;
+      }
     }
     candidates.forEach(function (c, i) {
       var cl = byIdx[i];
       if (c.label === "proof") {
         // offline evidence is immutable; AI may only add color
-        if (cl && cl.reason && !c.reason) c.reason = String(cl.reason);
+        if (cl) {
+          stats.proofEchoes++;
+          if (cl.reason && !c.reason) c.reason = String(cl.reason);
+        }
         acceptHook(c, cl);
         return;
       }
@@ -598,7 +611,18 @@ window.TopClips = (function () {
   function renderTopClips(candidates, meta) {
     var results = document.querySelector("#results");
     var esc = D.esc;
-    var shown = candidates.filter(function (c) { return c.label; }).slice(0, DISPLAY_CAP);
+    // labeled[] is already rank-sorted proof → ai_proof → ai. When new AI cards
+    // exist, cap proofs so a proof-rich source can't fill every display slot and
+    // bury the AI picks; otherwise keep the plain top-N.
+    var labeled = candidates.filter(function (c) { return c.label; });
+    var aiCards = labeled.filter(function (c) { return c.label === "ai" || c.label === "ai_proof"; });
+    var shown;
+    if (aiCards.length) {
+      var proofCards = labeled.filter(function (c) { return c.label === "proof"; }).slice(0, PROOF_DISPLAY_MAX);
+      shown = proofCards.concat(aiCards).slice(0, DISPLAY_CAP);
+    } else {
+      shown = labeled.slice(0, DISPLAY_CAP);
+    }
     // In scout mode, a source may have no proven-pattern matches offline. Rather
     // than show nothing, backfill with the most specific un-proven lines tagged
     // SCAN, so the editor always gets a usable shot list.
@@ -872,9 +896,15 @@ window.TopClips = (function () {
             recordAiMs(Date.now() - aiStart);
             lastMeta.aiNote = "AI pass refined " + st.hooksAdded + " PROOF hook" + (st.hooksAdded === 1 ? "" : "s") +
               " but added no new clips — the offline matches already cover this source.";
+          } else if (st.returned > 0 && st.proofEchoes === st.returned) {
+            // The model spent its whole budget re-confirming offline proofs and
+            // picked nothing new — the common proof-rich-source outcome.
+            console.info("topclips ai pass: echoes-only", JSON.stringify(st), "raw:", result.raw.slice(0, 300));
+            lastMeta.aiNote = "AI pass only re-confirmed the offline PROOF matches (" + st.proofEchoes + " echoes, " +
+              st.hookRejected + " hooks rejected as non-verbatim) — no new clips this run. Run it again to retry.";
           } else if (st.returned > 0) {
             // The model DID return clips but none survived validation — say why.
-            console.info("topclips ai pass: 0 usable of " + st.returned + " (badIndex " + st.badIndex + ", badLabel " + st.badLabel + "); raw:", result.raw.slice(0, 300));
+            console.info("topclips ai pass: 0 usable of " + st.returned, JSON.stringify(st), "raw:", result.raw.slice(0, 300));
             lastMeta.aiNote = "AI pass returned " + st.returned + " clip" + (st.returned === 1 ? "" : "s") +
               " but none were usable (" + st.badIndex + " bad index, " + st.badLabel + " bad label) — run it again to retry.";
           } else {
