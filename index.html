@@ -118,11 +118,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Choose audio or video file
         </div>
-        <div class="hint">mp3 · m4a · wav · mp4 · mov · webm — up to 2 GB. <b>Audio-only is fastest.</b> Drop a .txt, .srt, or .vtt transcript here and it loads as text, no API needed.</div>
+        <div class="hint">mp3 · m4a · wav · mp4 · mov · webm — up to 2 GB. <b>Audio-only is fastest.</b> Pick or drop a .txt, .srt, or .vtt transcript and it loads as text, no API needed.</div>
       </div>
       <!-- Kept OUTSIDE #uploadzone: renderUploadZone() rewrites the zone's
            innerHTML on every open, which would otherwise detach this input. -->
-      <input type="file" id="audiofile" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.ogg,.flac" style="display:none">
+      <input type="file" id="audiofile" accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.mov,.webm,.ogg,.flac,.txt,.srt,.vtt,.md,text/plain" style="display:none">
       <p class="privacy"><b>Audio is sent to Google for transcription.</b> Your transcripts stay on this
         device and never leave it. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Need a key?</a>
         No key? <a href="https://turboscribe.ai/dashboard" target="_blank" rel="noopener">Transcribe free with TurboScribe</a> and paste it above.</p>

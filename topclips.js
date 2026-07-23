@@ -99,6 +99,8 @@ window.TopClips = (function () {
     return tokens(String(scaffold).replace(/\{[^}]*\}/g, " "));
   }
   function wordCount(text) { return text.split(/\s+/).filter(Boolean).length; }
+  function lastWords(t, n) { var w = String(t || "").split(/\s+/).filter(Boolean); return w.slice(Math.max(0, w.length - n)).join(" "); }
+  function firstWords(t, n) { var w = String(t || "").split(/\s+/).filter(Boolean); return w.slice(0, n).join(" "); }
 
   // --- data loading ---
   // Prefer the live sibling bank (same origin on the github.io deploy, or a
@@ -198,10 +200,11 @@ window.TopClips = (function () {
     return tpl.split("{show}").join(srcTitle);
   }
   function composeQuote(candidate, limit, settings) {
+    var quoted = candidate.hookText || candidate.text; // sharpest verbatim hook wins
     var attr = attributionFor(settings, candidate.srcTitle);
     var budget = limit - attr.length - 3; // 2 curly quotes + newline
-    if (budget < 20) return trimToFit(candidate.text, limit); // pathological template — drop attribution
-    return "“" + trimToFit(candidate.text, budget) + "”\n" + attr;
+    if (budget < 20) return trimToFit(quoted, limit); // pathological template — drop attribution
+    return "“" + trimToFit(quoted, budget) + "”\n" + attr;
   }
   function composeOffline(candidate, settings) {
     return {
@@ -223,7 +226,7 @@ window.TopClips = (function () {
       "You write text posts for a short-form creator. Ground everything in the provided\n" +
       "transcript line — never invent claims, numbers, or patterns, and never mention scores.\n" +
       "Keep the line's substance; quote it or reframe it lightly.\n" +
-      'Line: "' + candidate.text + '" — from "' + candidate.srcTitle + '" at ' + candidate.t + ".\n" +
+      'Line: "' + (candidate.hookText || candidate.text) + '" — from "' + candidate.srcTitle + '" at ' + candidate.t + ".\n" +
       "Evidence: " + evidence + ".\n" +
       "Channel: " + ((settings && settings.channelName) || "unnamed") +
       ", niche: " + ((settings && settings.channelNiche) || "general") + ".\n" +
@@ -287,6 +290,8 @@ window.TopClips = (function () {
             srcId: f.s.id, srcTitle: f.s.title, idx: f.idx,
             t: f.seg.t, sec: f.seg.sec, text: text,
             key: f.s.id + "@" + f.seg.sec + "@" + f.idx,
+            ctxPrev: f.idx > 0 ? lastWords(f.s.segments[f.idx - 1].text, 12) : "",
+            ctxNext: f.idx < f.s.segments.length - 1 ? firstWords(f.s.segments[f.idx + 1].text, 12) : "",
             label: null, proofType: null, match: null,
             grounding: "", reason: "", sim: 0, spec: specificityScore(text), rank: 0,
           };
@@ -368,6 +373,7 @@ window.TopClips = (function () {
       candidates: candidates.map(function (c, i) {
         return {
           i: i, text: c.text,
+          prev: c.ctxPrev || "", next: c.ctxNext || "",
           offlineProof: c.label === "proof",
           offlineMatch: c.match
             ? (c.match.kind === "pattern" ? c.match.patternName : c.match.hook)
@@ -387,9 +393,14 @@ window.TopClips = (function () {
       '3. Candidates marked offlineProof:true are already proven. Echo them as "proof" or omit them.\n' +
       "   Never relabel or downgrade them.\n" +
       "4. Prefer lines fitting the channel niche and voice.\n" +
-      "5. Select at most 20 total. Return strict JSON only.\n" +
+      '5. "prev"/"next" are the neighboring transcript lines — CONTEXT ONLY, to judge whether\n' +
+      "   the candidate line opens the thought or lands mid-stream. Never label prev/next.\n" +
+      '   Optionally add "hook": the sharpest 1-2 sentence hook COPIED VERBATIM from that\n' +
+      '   candidate\'s "text" — an exact substring, never paraphrased, never taken from\n' +
+      '   prev/next. Omit "hook" when the whole line already is the hook.\n' +
+      "6. Select at most 20 total. Return strict JSON only.\n" +
       "Context: " + JSON.stringify(payload) + "\n" +
-      'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":""}]}'
+      'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":"","hook":""}]}'
     );
   }
   function mergeAIResults(candidates, parsed, theBank, winners) {
@@ -399,11 +410,22 @@ window.TopClips = (function () {
       if (typeof cl.i !== "number" || cl.i < 0 || cl.i >= candidates.length) return; // out of range
       byIdx[cl.i] = cl;
     });
+    function normWS(s) { return String(s).replace(/\s+/g, " ").trim(); }
+    // The AI may point at the sharpest hook INSIDE a line, but only verbatim:
+    // an exact substring, at least 3 words, strictly shorter than the line.
+    // Anything else is silently ignored and the card shows the full text.
+    function acceptHook(c, cl) {
+      if (!cl || typeof cl.hook !== "string") return;
+      var h = normWS(cl.hook);
+      if (h && h.length < normWS(c.text).length && wordCount(h) >= 3 &&
+          c.text.indexOf(h) !== -1) c.hookText = h;
+    }
     candidates.forEach(function (c, i) {
       var cl = byIdx[i];
       if (c.label === "proof") {
         // offline evidence is immutable; AI may only add color
         if (cl && cl.reason && !c.reason) c.reason = String(cl.reason);
+        acceptHook(c, cl);
         return;
       }
       if (!cl) return;
@@ -427,6 +449,7 @@ window.TopClips = (function () {
       c.label = label;
       c.grounding = String(cl.grounding || "");
       c.reason = String(cl.reason || "");
+      acceptHook(c, cl);
     });
     var order = { proof: 0, ai_proof: 1, ai: 2 };
     return candidates.slice().sort(function (a, b) {
@@ -437,7 +460,7 @@ window.TopClips = (function () {
   function aiPass(candidates, theBank, winners, settings) {
     var prompt = buildAIPrompt(candidates, theBank, winners, settings);
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 4000,
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 5000,
     }).then(function (text) {
       var parsed;
       try { parsed = JSON.parse(text); }
@@ -457,6 +480,17 @@ window.TopClips = (function () {
     scan: '<span class="tclabel scan">SCAN</span>',
   };
 
+  // The card keeps the FULL segment visible (an editor needs the surrounding
+  // words to cut the clip; the timestamp anchors the segment start) and marks
+  // the AI's verbatim hook inside it when one was accepted.
+  function lineHtml(c) {
+    var esc = D.esc;
+    var idx = c.hookText ? c.text.indexOf(c.hookText) : -1;
+    if (idx < 0) return '<div class="line">' + esc(c.text) + "</div>";
+    return '<div class="line">' + esc(c.text.slice(0, idx)) +
+      '<mark class="tchook">' + esc(c.hookText) + "</mark>" +
+      esc(c.text.slice(idx + c.hookText.length)) + "</div>";
+  }
   function groundingHtml(c) {
     var esc = D.esc;
     if (c.match && c.match.kind === "pattern") {
@@ -548,7 +582,7 @@ window.TopClips = (function () {
         '<button class="postbtn" data-key="' + c.key + '">→ POST</button>' +
         '<button class="addbtn' + (added ? " added" : "") + '" data-key="' + c.key + '" ' +
         'data-src="' + c.srcId + '" data-idx="' + c.idx + '">' + (added ? "IN BIN ✓" : "+ BIN") + "</button></div>" +
-        '<div class="line">' + esc(c.text) + "</div>" +
+        lineHtml(c) +
         groundingHtml(c) +
         (c.key === openPostKey ? postPanelHtml(c) : "") + "</div>";
     }).join("");
@@ -682,7 +716,7 @@ window.TopClips = (function () {
   }
   function shotListText(shown, meta) {
     var title = meta && meta.scout ? ("SCOUT — " + (meta.scoutTitle || "")) : "TOP CLIPS";
-    var lines = (shown || []).map(function (c) { return "[" + c.t + "] " + c.text + "  — " + whyNote(c); });
+    var lines = (shown || []).map(function (c) { return "[" + c.t + "] " + c.text + (c.hookText ? '  — hook: "' + c.hookText + '"' : "") + "  — " + whyNote(c); });
     return title + "\n" + lines.join("\n") + "\n";
   }
   // Public: scan a single source and show its scout report.
