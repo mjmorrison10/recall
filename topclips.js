@@ -420,10 +420,10 @@ window.TopClips = (function () {
       '   provided ledger winner. "grounding" MUST name it: the exact patternId, or the winner hook text.\n' +
       '2. "ai" = pure judgment that the line opens a strong clip for this channel. grounding stays "".\n' +
       '   "reason" explains the judgment in one short sentence.\n' +
-      '3. "proof" is ONLY for echoing candidates already marked offlineProof:true — echo every\n' +
-      '   one you keep as "proof" WITH a "hook" (below), never omit or downgrade it. Label your\n' +
-      '   OWN new picks "ai" or "ai_proof", never "proof". Echoed proof lines do NOT count\n' +
-      "   toward the selection limit below.\n" +
+      '3. "proof" is ONLY for echoing candidates already marked offlineProof:true — echo the\n' +
+      '   12 strongest of them as "proof" WITH a "hook" (below), and skip the rest (they are\n' +
+      '   already shown). Never label your OWN new picks "proof". Echoed proof lines do NOT\n' +
+      "   count toward the selection limit below.\n" +
       "4. Prefer lines fitting the channel niche and voice.\n" +
       '5. "prev"/"next" are the neighboring transcript lines — CONTEXT ONLY, to judge whether\n' +
       "   the candidate line opens the thought or lands mid-stream. Never label prev/next.\n" +
@@ -529,24 +529,40 @@ window.TopClips = (function () {
     if (parsed && Array.isArray(parsed.result)) return parsed.result;
     return [];
   }
+  // Rescue clips from a TRUNCATED response: scan the clips array and JSON.parse
+  // each COMPLETE {…} object (string/escape-aware), dropping a cut-off final
+  // one. A token-limit cutoff then still yields every clip that fully arrived.
+  function salvageClips(text) {
+    var s = String(text);
+    var k = s.indexOf('"clips"');
+    var start = s.indexOf("[", k >= 0 ? k : 0);
+    if (start < 0) start = s.indexOf("[");
+    if (start < 0) return [];
+    var out = [], depth = 0, objStart = -1, inStr = false, esc = false;
+    for (var i = start + 1; i < s.length; i++) {
+      var ch = s[i];
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') { inStr = true; continue; }
+      if (ch === "{") { if (depth === 0) objStart = i; depth++; }
+      else if (ch === "}") { depth--; if (depth === 0 && objStart >= 0) { try { out.push(JSON.parse(s.slice(objStart, i + 1))); } catch (e) {} objStart = -1; } }
+      else if (ch === "]" && depth === 0) break;
+    }
+    return out;
+  }
   function aiPass(candidates, theBank, winners, settings, onPhase) {
     var prompt = buildAIPrompt(candidates, theBank, winners, settings);
-    // Top Clips is the one hard reasoning task in the stack: thinking ON, and
-    // the larger output budget the labeled JSON needs (thinking tokens count
-    // against maxOutputTokens).
+    // Top Clips is the one hard reasoning task in the stack: bounded thinking so
+    // it can select without the reasoning tokens eating the output budget, a
+    // roomy cap, and partial-salvage so a token-limit cutoff isn't fatal.
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 8000,
-      thinking: true, onPhase: onPhase,
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 16000,
+      thinkingBudget: 4096, partialOnTruncate: true, onPhase: onPhase,
     }).then(function (text) {
-      var parsed;
-      try { parsed = JSON.parse(text); }
-      catch (e) {
-        var m = String(text).match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-        if (m) parsed = JSON.parse(m[0]); else throw new Error("AI returned unparseable output");
-      }
-      var clips = clipsFrom(parsed);
+      var clips, truncated = false;
+      try { clips = clipsFrom(JSON.parse(text)); }
+      catch (e) { clips = salvageClips(text); truncated = true; }
       var res = mergeAIResults(candidates, { clips: clips }, theBank, winners);
-      return { merged: res.merged, stats: res.stats, raw: String(text) };
+      return { merged: res.merged, stats: res.stats, raw: String(text), truncated: truncated };
     });
   }
 
@@ -888,12 +904,12 @@ window.TopClips = (function () {
           lastCandidates = result.merged;
           var st = result.stats;
           if (st.aiAdded > 0) {
-            recordAiMs(Date.now() - aiStart);
+            if (!result.truncated) recordAiMs(Date.now() - aiStart);
             lastMeta.aiNote = "";
           } else if (st.hooksAdded > 0) {
             // Useful work (the model refined PROOF hooks per the prompt) — a
             // success state, just no brand-new clips.
-            recordAiMs(Date.now() - aiStart);
+            if (!result.truncated) recordAiMs(Date.now() - aiStart);
             lastMeta.aiNote = "AI pass refined " + st.hooksAdded + " PROOF hook" + (st.hooksAdded === 1 ? "" : "s") +
               " but added no new clips — the offline matches already cover this source.";
           } else if (st.returned > 0 && st.proofEchoes === st.returned) {
@@ -911,6 +927,13 @@ window.TopClips = (function () {
             // Genuinely empty response.
             console.info("topclips ai pass: empty response; raw:", result.raw.slice(0, 300));
             lastMeta.aiNote = "AI pass finished but added no clips beyond the offline PROOF matches — run it again to retry.";
+          }
+          if (result.truncated) {
+            // Not an error — the salvaged clips are shown; just tell the user
+            // some may not have made it through the token limit.
+            console.info("topclips ai pass: truncated, salvaged", JSON.stringify(st));
+            lastMeta.aiNote = (lastMeta.aiNote ? lastMeta.aiNote + " " : "") +
+              "(hit the token limit — showing what came through; RE-SCAN, or split very long sources, for the rest)";
           }
           renderTopClips(lastCandidates, lastMeta);
         }).catch(function (err) {
