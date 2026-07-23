@@ -89,12 +89,18 @@
   // time, so a hook buried mid- or end-block still surfaces as its own clip.
   var SEG_MAX_WORDS = 40;
   function wordCountOf(t){ return (String(t).trim().match(/\S+/g) || []).length; }
+  // Sentence tokenizer shared by splitLongSegments and mergeToSentences:
+  // sentence + terminal punctuation + any closing quotes/brackets, or a
+  // trailing unterminated run.
+  function sentenceChunks(text){
+    return String(text).match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || [];
+  }
   function splitLongSegments(segs){
     var out = [];
     for(var i=0;i<segs.length;i++){
       var s = segs[i];
       if(wordCountOf(s.text) <= SEG_MAX_WORDS){ out.push(s); continue; }
-      var sentences = s.text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [s.text];
+      var sentences = sentenceChunks(s.text); if(!sentences.length) sentences = [s.text];
       var buf = "", bufw = 0;
       for(var j=0;j<sentences.length;j++){
         var sent = sentences[j].trim(); if(!sent) continue;
@@ -125,21 +131,84 @@
     if(m && m.length >= 3) return "inline";                  // (0:00) text (0:04) text
     return "legacy";
   }
-  // Merge ordered {sec,t,text} fragments into full sentences, each anchored to
-  // the timestamp of the fragment where the sentence STARTED. This is what gives
-  // SRT both fine timestamps AND cross-fragment search context (an SRT cue
-  // usually ends mid-sentence, so raw cues would break phrase search).
+  // Merge ordered {sec,t,text} fragments into sentence-aligned segments of
+  // ~SEG_MIN_WORDS..SEG_MAX_WORDS words, each anchored to the cue where its
+  // first sentence STARTED. Invariant: a segment never begins mid-sentence.
+  // TurboScribe cues constantly open with the tail of the previous sentence
+  // ("enslaves. This crap happens…") — that tail must attach backward, never
+  // lead a segment. Only exception: a single sentence longer than
+  // SEG_MAX_WORDS (or a punctuation-free stream) is hard-cut, same as before.
+  var SEG_MIN_WORDS = 8;   // at a sentence end, flush only with this much context
+  var TAIL_GLUE_MAX = 12;  // a broken sentence's short remainder glues backward
   function mergeToSentences(frags){
-    var out = [], buf = "", bufw = 0, startSec = 0, startT = "";
-    function flush(){ var txt = cleanLine(buf); if(txt) out.push({t:startT, sec:startSec, text:txt}); buf=""; bufw=0; }
-    for(var i=0;i<frags.length;i++){
-      var piece = String(frags[i].text||"").trim(); if(!piece) continue;
-      if(!buf){ startSec = frags[i].sec; startT = frags[i].t; }
-      buf = buf ? buf + " " + piece : piece;
-      bufw += wordCountOf(piece);
-      if(/[.!?]["')\]]?$/.test(piece) || bufw >= SEG_MAX_WORDS) flush();
+    var out = [];
+    var seg = "", segw = 0, segSec = 0, segT = "";     // completed sentences
+    var part = "", partw = 0, partSec = 0, partT = ""; // sentence in progress
+    var brokenTail = false;  // last emit was a hard mid-sentence cut
+    function emit(text, sec, t){
+      var txt = cleanLine(text);
+      if(txt) out.push({t:t, sec:sec, text:txt});
     }
-    flush();
+    function flushSeg(){ if(seg){ emit(seg, segSec, segT); seg = ""; segw = 0; } }
+    for(var i=0;i<frags.length;i++){
+      var raw = String(frags[i].text||"").trim(); if(!raw) continue;
+      var chunks = sentenceChunks(raw);
+      for(var j=0;j<chunks.length;j++){
+        var ch = chunks[j].trim(); if(!ch) continue;
+        if(!part){ partSec = frags[i].sec; partT = frags[i].t; }
+        part = part ? part + " " + ch : ch;
+        partw += wordCountOf(ch);
+        if(/[.!?]["')\]]*$/.test(ch)){
+          // sentence complete
+          if(brokenTail){
+            brokenTail = false;
+            if(partw <= TAIL_GLUE_MAX && out.length){
+              // orphan tail of a hard-cut sentence — belongs to the previous
+              // segment, must never lead a new one
+              var glued = cleanLine(part);
+              if(glued) out[out.length-1].text += " " + glued;
+              part = ""; partw = 0;
+              continue;
+            }
+          } else if(!seg && part === ch && partw <= 2 && /^[a-z]/.test(ch) && out.length){
+            // Mangled-cue orphan: real transcripts contain lone 1-2 word
+            // lowercase tails in their OWN cue ("relaxing.", "atility." — even
+            // mid-word splits) right after a completed sentence. Nothing is in
+            // the buffer to complete, but it must still never lead a segment —
+            // attach it backward.
+            var stray = cleanLine(part);
+            if(stray) out[out.length-1].text += " " + stray;
+            part = ""; partw = 0;
+            continue;
+          }
+          if(segw && segw + partw > SEG_MAX_WORDS) flushSeg();
+          if(!seg){ segSec = partSec; segT = partT; }
+          seg = seg ? seg + " " + part : part;
+          segw += partw;
+          part = ""; partw = 0;
+          if(segw >= SEG_MIN_WORDS) flushSeg();
+        } else if(segw + partw >= SEG_MAX_WORDS){
+          if(segw){
+            flushSeg();          // emit completed sentences; partial carries on
+          } else {
+            emit(part, partSec, partT);  // one sentence busts the cap — hard cut
+            part = ""; partw = 0;
+            brokenTail = true;
+          }
+        }
+      }
+    }
+    // stream end: remaining text goes out; a short broken tail still glues back
+    if(part){
+      if(brokenTail && partw <= TAIL_GLUE_MAX && out.length && !seg){
+        var tail = cleanLine(part);
+        if(tail) out[out.length-1].text += " " + tail;
+      } else {
+        if(!seg){ segSec = partSec; segT = partT; }
+        seg = seg ? seg + " " + part : part;
+      }
+    }
+    flushSeg();
     return out;
   }
   // SRT / WebVTT cue blocks → fragments → sentence-merge → long-split.
@@ -1170,7 +1239,7 @@
         '<div class="pick">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' +
         'Choose audio or video file</div>' +
-        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to 2 GB \u00b7 a .txt transcript loads as text, no API</div>';
+        '<div class="hint"><b>audio recommended</b> \u00b7 mp3 / m4a / wav / video \u2014 up to 2 GB \u00b7 a .txt / .srt transcript loads as text, no API</div>';
       return;
     }
     uploadzone.classList.add("has-file");
