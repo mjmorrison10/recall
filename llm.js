@@ -198,7 +198,11 @@
   }
 
   async function geminiGenerateText(apiKey, opts) {
-    var generationConfig = { temperature: opts.temperature != null ? opts.temperature : 0.4, thinkingConfig: { thinkingBudget: 0 } };
+    // Thinking is OFF by default (the speed win) — but opt back in per call for
+    // genuinely hard reasoning tasks like Top Clips selection, which returns
+    // empty/misshaped JSON without it.
+    var generationConfig = { temperature: opts.temperature != null ? opts.temperature : 0.4 };
+    if (!opts.thinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
     if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
     if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {

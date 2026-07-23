@@ -65,6 +65,21 @@ window.TopClips = (function () {
     if (h < 48) return h + "h ago";
     return Math.round(h / 24) + "d ago";
   }
+  // Learned "typically ~Ns" ETA for the AI pass — last 5 successful durations.
+  var TC_AI_MS = "recall_tc_ai_ms_v1";
+  function recordAiMs(ms) {
+    try {
+      var a = JSON.parse(localStorage.getItem(TC_AI_MS) || "[]"); if (!Array.isArray(a)) a = [];
+      a.push(ms); while (a.length > 5) a.shift();
+      localStorage.setItem(TC_AI_MS, JSON.stringify(a));
+    } catch (e) {}
+  }
+  function typicalAiMs() {
+    try {
+      var a = JSON.parse(localStorage.getItem(TC_AI_MS) || "[]"); if (!Array.isArray(a) || !a.length) return 0;
+      var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return Math.round(s / a.length);
+    } catch (e) { return 0; }
+  }
 
   // --- pure helpers (tokens/jaccard/specificity adapted from Hooklabs/app.js:124-150) ---
   function tokens(s) {
@@ -475,19 +490,40 @@ window.TopClips = (function () {
       return la !== lb ? la - lb : b.rank - a.rank;
     });
   }
-  function aiPass(candidates, theBank, winners, settings) {
+  // Accept the intended {clips:[…]} shape but also tolerate a bare top-level
+  // array or {result:[…]} — jsonMode only guarantees valid JSON, not our shape.
+  function clipsFrom(parsed) {
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.clips)) return parsed.clips;
+    if (parsed && Array.isArray(parsed.result)) return parsed.result;
+    return [];
+  }
+  function aiPass(candidates, theBank, winners, settings, onPhase) {
     var prompt = buildAIPrompt(candidates, theBank, winners, settings);
+    // Top Clips is the one hard reasoning task in the stack: thinking ON, and
+    // the larger output budget the labeled JSON needs (thinking tokens count
+    // against maxOutputTokens).
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 5000,
+      prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 8000,
+      thinking: true, onPhase: onPhase,
     }).then(function (text) {
       var parsed;
       try { parsed = JSON.parse(text); }
       catch (e) {
-        var m = String(text).match(/\{[\s\S]*\}/);
+        var m = String(text).match(/\{[\s\S]*\}|\[[\s\S]*\]/);
         if (m) parsed = JSON.parse(m[0]); else throw new Error("AI returned unparseable output");
       }
-      return mergeAIResults(candidates, parsed, theBank, winners);
+      var clips = clipsFrom(parsed);
+      var before = countLabeled(candidates);
+      var merged = mergeAIResults(candidates, { clips: clips }, theBank, winners);
+      var added = countLabeled(merged) - before;
+      return { merged: merged, added: added, raw: String(text) };
     });
+  }
+  function countLabeled(cands) {
+    var n = 0;
+    for (var i = 0; i < cands.length; i++) if (cands[i].label === "ai" || cands[i].label === "ai_proof") n++;
+    return n;
   }
 
   // --- render ---
@@ -575,7 +611,7 @@ window.TopClips = (function () {
       " · ledger: " + ledgerLabel(meta) +
       (meta.savedAt ? " · scanned " + relTime(meta.savedAt) : "") + "</span>" +
       ledgerHintHTML(meta) +
-      (meta.aiNote ? '<div class="tchint">' + esc(meta.aiNote) + "</div>" : "") +
+      (meta.aiNote ? '<div class="tchint" id="tcaihint">' + esc(meta.aiNote) + "</div>" : "") +
       "</div>" +
       '<div class="tcnote">PROOF = matches a HOOKLAB-verified winner or a high-evidence pattern. ' +
       "AI + PROOF = AI flags a close variation of a proven pattern (named below the line). " +
@@ -792,17 +828,40 @@ window.TopClips = (function () {
           renderTopClips(lastCandidates, lastMeta);
           return;
         }
-        lastMeta.aiNote = "AI pass running…";
+        var typ = typicalAiMs();
+        var etaSuffix = typ ? " (typically ~" + Math.round(typ / 1000) + "s)" : "";
+        lastMeta.aiNote = "AI pass running…" + etaSuffix;
         renderTopClips(lastCandidates, lastMeta);
-        return aiPass(lastCandidates, theBank, led.winners, settings).then(function (merged) {
+        // Live elapsed timer (a true % is impossible for one non-streaming call).
+        // Updates the note node in place so the list isn't re-rendered each tick;
+        // retry notices from llm.js (onPhase) take over the text while active.
+        var aiStart = Date.now();
+        var phaseNote = "";
+        var timer = setInterval(function () {
+          if (!active || myRun !== runSeq) { clearInterval(timer); return; }
+          var el = document.getElementById("tcaihint");
+          if (!el) return;
+          var secs = Math.round((Date.now() - aiStart) / 1000);
+          el.textContent = (phaseNote || "AI pass running…") + " " + secs + "s" + etaSuffix;
+        }, 1000);
+        return aiPass(lastCandidates, theBank, led.winners, settings, function (msg) { phaseNote = msg || ""; }).then(function (result) {
+          clearInterval(timer);
           // Persist BEFORE the guard: the AI tokens are already spent, so the
           // merged results must survive even if the user navigated away.
-          persistRun(persistId, persistTitle, merged, meta);
+          persistRun(persistId, persistTitle, result.merged, meta);
           if (!active || myRun !== runSeq) return;
-          lastCandidates = merged;
-          lastMeta.aiNote = "";
+          lastCandidates = result.merged;
+          if (result.added > 0) {
+            recordAiMs(Date.now() - aiStart);
+            lastMeta.aiNote = "";
+          } else {
+            // Resolved-but-empty: the one path that used to be totally silent.
+            console.info("topclips ai pass: 0 clips added; raw:", result.raw.slice(0, 300));
+            lastMeta.aiNote = "AI pass finished but added no clips beyond the offline PROOF matches — run it again to retry.";
+          }
           renderTopClips(lastCandidates, lastMeta);
         }).catch(function (err) {
+          clearInterval(timer);
           console.warn("topclips ai pass:", err);
           if (!active || myRun !== runSeq) return;
           lastMeta.aiNote = "AI pass failed (" + (err && err.message || "error") + ") — showing offline PROOF results.";
