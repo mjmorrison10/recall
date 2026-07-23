@@ -101,6 +101,18 @@ window.TopClips = (function () {
   function wordCount(text) { return text.split(/\s+/).filter(Boolean).length; }
   function lastWords(t, n) { var w = String(t || "").split(/\s+/).filter(Boolean); return w.slice(Math.max(0, w.length - n)).join(" "); }
   function firstWords(t, n) { var w = String(t || "").split(/\s+/).filter(Boolean); return w.slice(0, n).join(" "); }
+  // ASR-noise heuristic: mid-word case joins ("broLilly", "HeGülme") and
+  // isolated 1-2-word lowercase sentence fragments ("enslaves." dropped
+  // mid-line). Cheap and conservative — used to down-rank garbled candidates
+  // and to tell the AI that trimming the hook is mandatory for that line.
+  function noiseScore(text) {
+    var n = 0, s = String(text || "");
+    var toks = s.split(/\s+/);
+    for (var i = 0; i < toks.length; i++) if (/[a-z][A-Z]/.test(toks[i])) n++;
+    var m = s.match(/(?:^|[.!?]["')\]]*\s+)[a-z][^\s.!?]*(?:\s+[^\s.!?]+)?[.!?]/g);
+    if (m) n += m.length;
+    return n;
+  }
 
   // --- data loading ---
   // Prefer the live sibling bank (same origin on the github.io deploy, or a
@@ -293,7 +305,7 @@ window.TopClips = (function () {
             ctxPrev: f.idx > 0 ? lastWords(f.s.segments[f.idx - 1].text, 12) : "",
             ctxNext: f.idx < f.s.segments.length - 1 ? firstWords(f.s.segments[f.idx + 1].text, 12) : "",
             label: null, proofType: null, match: null,
-            grounding: "", reason: "", sim: 0, spec: specificityScore(text), rank: 0,
+            grounding: "", reason: "", sim: 0, spec: specificityScore(text), noise: noiseScore(text), rank: 0,
           };
           // 1) ledger Proof — your own proven winners first
           var bestLed = 0, bestHook = null;
@@ -329,6 +341,7 @@ window.TopClips = (function () {
             if (mp && mp.niches.indexOf(niche) >= 0) nicheBonus = 0.1;
           }
           cand.rank = evidenceWeight * cand.sim + 0.25 * cand.spec + nicheBonus;
+          if (cand.noise) cand.rank -= Math.min(0.3, 0.15 * cand.noise); // garbled lines rank below clean ones, never hidden
           out.push(cand);
         }
         if (onProgress) onProgress(i, total);
@@ -374,6 +387,7 @@ window.TopClips = (function () {
         return {
           i: i, text: c.text,
           prev: c.ctxPrev || "", next: c.ctxNext || "",
+          noisy: c.noise > 0,
           offlineProof: c.label === "proof",
           offlineMatch: c.match
             ? (c.match.kind === "pattern" ? c.match.patternName : c.match.hook)
@@ -390,14 +404,18 @@ window.TopClips = (function () {
       '   provided ledger winner. "grounding" MUST name it: the exact patternId, or the winner hook text.\n' +
       '2. "ai" = pure judgment that the line opens a strong clip for this channel. grounding stays "".\n' +
       '   "reason" explains the judgment in one short sentence.\n' +
-      '3. Candidates marked offlineProof:true are already proven. Echo them as "proof" or omit them.\n' +
-      "   Never relabel or downgrade them.\n" +
+      '3. Candidates marked offlineProof:true are already proven. ECHO every one you keep as\n' +
+      '   "proof" WITH a "hook" (below) — never omit or downgrade a proof line.\n' +
       "4. Prefer lines fitting the channel niche and voice.\n" +
       '5. "prev"/"next" are the neighboring transcript lines — CONTEXT ONLY, to judge whether\n' +
       "   the candidate line opens the thought or lands mid-stream. Never label prev/next.\n" +
-      '   Optionally add "hook": the sharpest 1-2 sentence hook COPIED VERBATIM from that\n' +
-      '   candidate\'s "text" — an exact substring, never paraphrased, never taken from\n' +
-      '   prev/next. Omit "hook" when the whole line already is the hook.\n' +
+      "   These lines are AUTO-TRANSCRIBED and contain artifacts: mid-word splits\n" +
+      '   ("broLilly", "HeGülme"), duplicated words, and stray sentence-tails like "enslaves."\n' +
+      "   that belong to nothing. A hook must NEVER include such garbage.\n" +
+      '   Add "hook": the sharpest 1-2 sentence hook COPIED VERBATIM from that candidate\'s\n' +
+      '   "text" — an exact substring, never paraphrased, never taken from prev/next. "hook" is\n' +
+      '   REQUIRED whenever "noisy" is true or any part of the line is filler or garbage; it is\n' +
+      "   optional only when the whole line is already clean and sharp end to end.\n" +
       "6. Select at most 20 total. Return strict JSON only.\n" +
       "Context: " + JSON.stringify(payload) + "\n" +
       'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":"","hook":""}]}'
