@@ -174,7 +174,7 @@
     } catch (e) { /* silent */ }
   }
 
-  async function extractGeminiText(res) {
+  async function extractGeminiText(res, partialOnTruncate) {
     if (!res.ok) {
       var body = "";
       try { body = await res.text(); } catch (e) {}
@@ -191,9 +191,11 @@
                candidate.content.parts[0] && candidate.content.parts[0].text;
     if (!text) throw new Error("Empty response from Gemini");
     var finishReason = candidate && candidate.finishReason;
-    if (finishReason === "MAX_TOKENS") {
+    if (finishReason === "MAX_TOKENS" && !partialOnTruncate) {
       throw new Error("Response hit the token limit and was truncated. Try shorter input.");
     }
+    // With partialOnTruncate, the caller salvages the complete items from the
+    // truncated text rather than losing the whole response.
     return text;
   }
 
@@ -202,7 +204,10 @@
     // genuinely hard reasoning tasks like Top Clips selection, which returns
     // empty/misshaped JSON without it.
     var generationConfig = { temperature: opts.temperature != null ? opts.temperature : 0.4 };
-    if (!opts.thinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    // Bounded thinking (a positive budget) lets hard tasks reason without the
+    // thinking tokens eating the whole output budget; 0 = off (the speed win).
+    if (typeof opts.thinkingBudget === "number") generationConfig.thinkingConfig = { thinkingBudget: opts.thinkingBudget };
+    else if (!opts.thinking) generationConfig.thinkingConfig = { thinkingBudget: 0 };
     if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
     if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {
@@ -212,7 +217,7 @@
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: opts.prompt }] }], generationConfig: generationConfig }),
       });
     }, retryReporter(opts.onPhase));
-    return extractGeminiText(res);
+    return extractGeminiText(res, opts.partialOnTruncate);
   }
 
   async function geminiGenerateFromMedia(apiKey, opts) {
