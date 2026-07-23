@@ -419,8 +419,9 @@ window.TopClips = (function () {
       '   provided ledger winner. "grounding" MUST name it: the exact patternId, or the winner hook text.\n' +
       '2. "ai" = pure judgment that the line opens a strong clip for this channel. grounding stays "".\n' +
       '   "reason" explains the judgment in one short sentence.\n' +
-      '3. Candidates marked offlineProof:true are already proven. ECHO every one you keep as\n' +
-      '   "proof" WITH a "hook" (below) — never omit or downgrade a proof line.\n' +
+      '3. "proof" is ONLY for echoing candidates already marked offlineProof:true — echo every\n' +
+      '   one you keep as "proof" WITH a "hook" (below), never omit or downgrade it. Label your\n' +
+      '   OWN new picks "ai" or "ai_proof", never "proof".\n' +
       "4. Prefer lines fitting the channel niche and voice.\n" +
       '5. "prev"/"next" are the neighboring transcript lines — CONTEXT ONLY, to judge whether\n' +
       "   the candidate line opens the thought or lands mid-stream. Never label prev/next.\n" +
@@ -431,17 +432,28 @@ window.TopClips = (function () {
       '   "text" — an exact substring, never paraphrased, never taken from prev/next. "hook" is\n' +
       '   REQUIRED whenever "noisy" is true or any part of the line is filler or garbage; it is\n' +
       "   optional only when the whole line is already clean and sharp end to end.\n" +
-      "6. Select at most 20 total. Return strict JSON only.\n" +
+      '6. "i" MUST be the integer index of the candidate as a JSON number (0, 1, 2 — not "0").\n' +
+      "7. Select at most 20 total. Return strict JSON only.\n" +
       "Context: " + JSON.stringify(payload) + "\n" +
       'Return JSON shape: {"clips":[{"i":0,"label":"proof","patternId":null,"grounding":"","reason":"","hook":""}]}'
     );
   }
+  // Normalize a model-supplied label. Gemini varies casing/spacing ("AI",
+  // "ai proof", "Ai_Proof"); coerce to our vocabulary rather than dropping.
+  function normLabel(v) {
+    var s = String(v || "").toLowerCase().replace(/[^a-z_]/g, "");
+    if (s === "aiproof") s = "ai_proof";
+    return s;
+  }
   function mergeAIResults(candidates, parsed, theBank, winners) {
     var clips = (parsed && parsed.clips) || [];
+    var stats = { returned: clips.length, aiAdded: 0, hooksAdded: 0, badIndex: 0, badLabel: 0 };
     var byIdx = Object.create(null);
     clips.forEach(function (cl) {
-      if (typeof cl.i !== "number" || cl.i < 0 || cl.i >= candidates.length) return; // out of range
-      byIdx[cl.i] = cl;
+      // Coerce the index — Gemini frequently returns "i":"0" (a string).
+      var idx = Math.trunc(Number(cl && cl.i));
+      if (!isFinite(idx) || idx < 0 || idx >= candidates.length) { stats.badIndex++; return; }
+      byIdx[idx] = cl;
     });
     function normWS(s) { return String(s).replace(/\s+/g, " ").trim(); }
     // The AI may point at the sharpest hook INSIDE a line, but only verbatim:
@@ -451,7 +463,7 @@ window.TopClips = (function () {
       if (!cl || typeof cl.hook !== "string") return;
       var h = normWS(cl.hook);
       if (h && h.length < normWS(c.text).length && wordCount(h) >= 3 &&
-          c.text.indexOf(h) !== -1) c.hookText = h;
+          c.text.indexOf(h) !== -1 && !c.hookText) { c.hookText = h; stats.hooksAdded++; }
     }
     candidates.forEach(function (c, i) {
       var cl = byIdx[i];
@@ -462,8 +474,12 @@ window.TopClips = (function () {
         return;
       }
       if (!cl) return;
-      var label = cl.label === "ai_proof" ? "ai_proof" : cl.label === "ai" ? "ai" : null;
-      if (!label) return;
+      var raw = normLabel(cl.label);
+      // "proof" on a NON-proof candidate is the model over-using the word (our
+      // prompt leans on it heavily) — treat as a claimed proof and let the
+      // grounding check below rescue or demote it, rather than dropping.
+      var label = raw === "proof" ? "ai_proof" : raw === "ai_proof" ? "ai_proof" : raw === "ai" ? "ai" : null;
+      if (!label) { stats.badLabel++; return; }
       if (label === "ai_proof") {
         // demote unless the grounding names a real pattern or a real winner
         var pat = findPattern(theBank, cl.patternId);
@@ -482,13 +498,15 @@ window.TopClips = (function () {
       c.label = label;
       c.grounding = String(cl.grounding || "");
       c.reason = String(cl.reason || "");
+      stats.aiAdded++;
       acceptHook(c, cl);
     });
     var order = { proof: 0, ai_proof: 1, ai: 2 };
-    return candidates.slice().sort(function (a, b) {
+    var merged = candidates.slice().sort(function (a, b) {
       var la = a.label ? order[a.label] : 9, lb = b.label ? order[b.label] : 9;
       return la !== lb ? la - lb : b.rank - a.rank;
     });
+    return { merged: merged, stats: stats };
   }
   // Accept the intended {clips:[…]} shape but also tolerate a bare top-level
   // array or {result:[…]} — jsonMode only guarantees valid JSON, not our shape.
@@ -514,16 +532,9 @@ window.TopClips = (function () {
         if (m) parsed = JSON.parse(m[0]); else throw new Error("AI returned unparseable output");
       }
       var clips = clipsFrom(parsed);
-      var before = countLabeled(candidates);
-      var merged = mergeAIResults(candidates, { clips: clips }, theBank, winners);
-      var added = countLabeled(merged) - before;
-      return { merged: merged, added: added, raw: String(text) };
+      var res = mergeAIResults(candidates, { clips: clips }, theBank, winners);
+      return { merged: res.merged, stats: res.stats, raw: String(text) };
     });
-  }
-  function countLabeled(cands) {
-    var n = 0;
-    for (var i = 0; i < cands.length; i++) if (cands[i].label === "ai" || cands[i].label === "ai_proof") n++;
-    return n;
   }
 
   // --- render ---
@@ -851,12 +862,24 @@ window.TopClips = (function () {
           persistRun(persistId, persistTitle, result.merged, meta);
           if (!active || myRun !== runSeq) return;
           lastCandidates = result.merged;
-          if (result.added > 0) {
+          var st = result.stats;
+          if (st.aiAdded > 0) {
             recordAiMs(Date.now() - aiStart);
             lastMeta.aiNote = "";
+          } else if (st.hooksAdded > 0) {
+            // Useful work (the model refined PROOF hooks per the prompt) — a
+            // success state, just no brand-new clips.
+            recordAiMs(Date.now() - aiStart);
+            lastMeta.aiNote = "AI pass refined " + st.hooksAdded + " PROOF hook" + (st.hooksAdded === 1 ? "" : "s") +
+              " but added no new clips — the offline matches already cover this source.";
+          } else if (st.returned > 0) {
+            // The model DID return clips but none survived validation — say why.
+            console.info("topclips ai pass: 0 usable of " + st.returned + " (badIndex " + st.badIndex + ", badLabel " + st.badLabel + "); raw:", result.raw.slice(0, 300));
+            lastMeta.aiNote = "AI pass returned " + st.returned + " clip" + (st.returned === 1 ? "" : "s") +
+              " but none were usable (" + st.badIndex + " bad index, " + st.badLabel + " bad label) — run it again to retry.";
           } else {
-            // Resolved-but-empty: the one path that used to be totally silent.
-            console.info("topclips ai pass: 0 clips added; raw:", result.raw.slice(0, 300));
+            // Genuinely empty response.
+            console.info("topclips ai pass: empty response; raw:", result.raw.slice(0, 300));
             lastMeta.aiNote = "AI pass finished but added no clips beyond the offline PROOF matches — run it again to retry.";
           }
           renderTopClips(lastCandidates, lastMeta);
