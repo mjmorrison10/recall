@@ -336,7 +336,7 @@
   var $=function(s){return document.querySelector(s)};
   var q=$("#q"),results=$("#results"),chips=$("#chips"),count=$("#count"),
       binlist=$("#binlist"),bnum=$("#bnum"),exportBtn=$("#export"),
-      exportSRTBtn=$("#exportSRT"),clearBtn=$("#clearbin");
+      exportSRTBtn=$("#exportSRT"),clearBtn=$("#clearbin"),binBlastBtn=$("#binToBlast");
 
   function esc(s){return s.replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]});}
   function terms(str){return str.toLowerCase().split(/\s+/).filter(function(w){return w.length});}
@@ -429,6 +429,7 @@
     exportBtn.disabled=!state.bin.length;
     exportSRTBtn.disabled=!state.bin.length;
     if(clearBtn)clearBtn.disabled=!state.bin.length;
+    if(binBlastBtn)binBlastBtn.disabled=!state.bin.length;
     if(!state.bin.length){
       binlist.innerHTML='<div class="binempty">Hit <span class="k">+ BIN</span> on any moment to '+
         'start building a clip concept. Stack moments from different sources — that’s where the '+
@@ -450,18 +451,10 @@
         save();search();renderBin();
       });
     });
-    // Per-clip handoff to BLAST: same blast_handoff_v1 contract as the Top
-    // Clips POST panel (BLAST reads only {caption}); written here directly so
-    // the app.js -> TopClips dependency arrow stays one-directional.
     binlist.querySelectorAll(".bblast").forEach(function(btn){
       btn.addEventListener("click",function(){
         var b=state.bin.find(function(v){return v.key===btn.dataset.bb});
-        if(!b)return;
-        try{
-          localStorage.setItem("blast_handoff_v1",JSON.stringify({caption:b.text,source:"recall-bin",createdAt:Date.now()}));
-        }catch(e){ toast("Couldn't hand off (storage full?)"); return; }
-        window.open(new URL("../blast/",location.href).href,"_blank","noopener");
-        toast("Sent to BLAST");
+        if(b) sendToBlast(b.text,"recall-bin");
       });
     });
     binlist.querySelectorAll(".edit").forEach(function(btn){
@@ -570,6 +563,74 @@
   });
   $("#addchip").addEventListener("click",openModal);
   applyChipsCollapsed();
+
+  // === Handoff to BLAST ===
+  // Two shapes, both consumed by BLAST:
+  //   blast_handoff_v1 — one caption, the original single-clip contract.
+  //   blast_queue_v1   — a batch of clips, each keeping its RECALL identity so
+  //                      BLAST can caption them all in one sitting and PULSE
+  //                      can later tell the resulting posts apart.
+  // Both writers live here (not in topclips.js) so the app.js -> TopClips
+  // dependency arrow stays one-directional; TopClips calls them through D.
+  var BLAST_URL = new URL("../blast/", location.href).href;
+  function openBlast(){ window.open(BLAST_URL, "_blank", "noopener"); }
+
+  function sendToBlast(caption, source){
+    try{
+      localStorage.setItem("blast_handoff_v1", JSON.stringify({
+        caption: caption, source: source || "recall", createdAt: Date.now(),
+      }));
+    }catch(e){ toast("Couldn't hand off (storage full?)"); return false; }
+    openBlast();
+    toast("Sent to BLAST");
+    return true;
+  }
+
+  // clips: [{key, srcId, srcTitle, t, sec, text, hookText?, label?}]
+  // Appends to the existing queue, skipping clips already there (re-sending a
+  // bin you've grown by three shouldn't duplicate the other twenty).
+  function queueToBlast(clips, source){
+    if(!clips || !clips.length){ toast("Nothing to send"); return false; }
+    var q;
+    try{ q = JSON.parse(localStorage.getItem("blast_queue_v1")) || null; }catch(e){ q = null; }
+    if(!q || q.v !== 1 || !Array.isArray(q.clips)) q = { v:1, updatedAt:0, defaultPlatforms:null, clips:[] };
+    var seen = Object.create(null);
+    q.clips.forEach(function(c){ seen[c.key] = 1; });
+    var added = 0, skipped = 0;
+    clips.forEach(function(c){
+      if(!c || !c.key) return;
+      if(seen[c.key]){ skipped++; return; }
+      seen[c.key] = 1;
+      q.clips.push({
+        key: c.key, srcId: c.srcId || "", srcTitle: c.srcTitle || "",
+        t: c.t || "", sec: c.sec || 0,
+        text: String(c.text || "").trim(),
+        hookText: String(c.hookText || "").trim(),
+        label: c.label || "",
+        platforms: null,
+        captions: {}, titles: {}, suggestions: {}, picked: {},
+        status: {}, postUrl: {}, postedAt: {}, postedCaption: {},
+        genState: "pending", genError: "",
+        source: source || "recall", createdAt: Date.now(), updatedAt: Date.now(),
+      });
+      added++;
+    });
+    q.updatedAt = Date.now();
+    try{ localStorage.setItem("blast_queue_v1", JSON.stringify(q)); }
+    catch(e){ toast("Couldn't queue (storage full?)"); return false; }
+    openBlast();
+    toast("Queued " + added + " clip" + (added===1?"":"s") + " for BLAST" +
+      (skipped ? " (" + skipped + " already queued)" : ""));
+    return true;
+  }
+
+  // Whole bin -> BLAST queue. Bin items carry no hookText, so the moment text
+  // is both the hook and the caption seed.
+  if(binBlastBtn)binBlastBtn.addEventListener("click",function(){
+    queueToBlast(state.bin.map(function(b){
+      return {key:b.key, srcId:b.srcId, srcTitle:b.srcTitle, t:b.t, sec:b.sec, text:b.text};
+    }), "recall-bin");
+  });
 
   if(clearBtn)clearBtn.addEventListener("click",function(){
     if(!state.bin.length)return;
@@ -1412,7 +1473,8 @@
     getState:function(){return state}, save:save, search:search,
     toggleBin:toggleBin, renderBin:renderBin, binHas:binHas, esc:esc, toast:toast,
     getProviderConfig:getProviderConfig, loadSettings:loadSettings,
-    aiTicker:aiTicker, getThinkingPref:getThinkingPref
+    aiTicker:aiTicker, getThinkingPref:getThinkingPref,
+    sendToBlast:sendToBlast, queueToBlast:queueToBlast
   });
 
   // Register service worker so the app shell caches for offline use after the
