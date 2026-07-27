@@ -327,6 +327,8 @@
   .tcmeta{font-family:var(--mono);font-size:11px;color:var(--faint)}
   .tchint{flex-basis:100%;font-size:12.5px;color:var(--muted);line-height:1.5;
     padding-left:11px;border-left:2px solid var(--gold)}
+  .postainote{display:none;flex-basis:100%;font-size:12px;line-height:1.4;color:var(--gold)}
+  .postainote.on{display:block}
   .tcnote{font-family:var(--mono);font-size:10.5px;color:var(--faint);line-height:1.6;
     margin:0 2px 14px;max-width:90ch}
   .tclabel{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;

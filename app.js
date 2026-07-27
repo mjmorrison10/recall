@@ -640,6 +640,58 @@
   function toast(msg){var el=$("#toast");el.textContent=msg;el.classList.add("show");
     clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show")},1900);}
 
+  // === AI ops UX: elapsed ticker + learned "typically ~Ns" durations ===
+  // Op-keyed rolling average (last 5 runs) so long operations show an honest
+  // ETA instead of a spinner of unknown length. Top Clips keeps its own
+  // pre-existing store (recall_tc_ai_ms_v1); this one covers transcribe/compose.
+  var LS_AI_MS = "recall_ai_ms_v1";
+  function recordAiMs(op, ms){
+    try {
+      var all = JSON.parse(localStorage.getItem(LS_AI_MS) || "{}"); if (!all || typeof all !== "object") all = {};
+      var a = Array.isArray(all[op]) ? all[op] : [];
+      a.push(ms); while (a.length > 5) a.shift();
+      all[op] = a;
+      localStorage.setItem(LS_AI_MS, JSON.stringify(all));
+    } catch (e) {}
+  }
+  function typicalAiMs(op){
+    try {
+      var a = (JSON.parse(localStorage.getItem(LS_AI_MS) || "{}") || {})[op];
+      if (!Array.isArray(a) || !a.length) return 0;
+      var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return Math.round(s / a.length);
+    } catch (e) { return 0; }
+  }
+  // Thinking preference ("on" = best quality, "off" = fastest). Own key plus
+  // the StackData shared store so RECALL/HOOKLAB/BLAST follow one switch on
+  // this device. Shared value wins on read; default is ON.
+  var LS_THINKING = "recall_thinking_v1";
+  function getThinkingPref(){
+    var v = "";
+    try { v = (window.StackData && window.StackData.readSharedKeys().aiThinking) || localStorage.getItem(LS_THINKING) || ""; } catch (e) {}
+    return v === "off" ? "off" : "on";
+  }
+  function setThinkingPref(v){
+    try { localStorage.setItem(LS_THINKING, v); } catch (e) {}
+    if (window.StackData) window.StackData.writeSharedKeys({ aiThinking: v });
+  }
+  // Drive any status writer (setModalStatus, a panel note, a button label…)
+  // with a live "Doing… Ns (typically ~Ns)" line. write(text) fires every
+  // second and on each phase change; stop(ok) ends the ticker and records the
+  // duration only on success, so failures don't poison the average.
+  function aiTicker(op, baseText, write){
+    var typ = typicalAiMs(op);
+    var eta = typ ? " (typically ~" + Math.round(typ / 1000) + "s)" : "";
+    var start = Date.now(), phase = "";
+    function tick(){ write((phase || baseText) + "… " + Math.round((Date.now() - start) / 1000) + "s" + eta); }
+    tick();
+    var timer = setInterval(tick, 1000);
+    return {
+      onPhase: function (msg){ phase = msg || ""; tick(); },
+      elapsedS: function (){ return Math.round((Date.now() - start) / 1000); },
+      stop: function (ok){ clearInterval(timer); if (ok) recordAiMs(op, Date.now() - start); },
+    };
+  }
+
   // modal
   var scrim=$("#scrim"),mtitle=$("#mtitle"),mtext=$("#mtext"),msave=$("#msave"),mstatus=$("#mstatus");
   var modalBusy=false;
@@ -745,9 +797,20 @@
       var segs, source;
       if (pendingFile) {
         // === Transcription flow: audio file → provider → [HH:MM:SS] text → parse ===
-        var raw = await transcribe(pendingFile, function (label) {
-          if (myToken === uploadToken) setModalStatus("progress", label + "…");
+        // Elapsed ticker + learned ETA into the modal status line; failures
+        // rethrow with the elapsed time so the persistent warn below says how
+        // long it ran before dying (the old silent-freeze had no such trail).
+        var tick = aiTicker("transcribe", "Transcribing", function (txt) {
+          if (myToken === uploadToken) setModalStatus("progress", txt);
         });
+        var raw;
+        try {
+          raw = await transcribe(pendingFile, tick.onPhase);
+          tick.stop(true);
+        } catch (te) {
+          tick.stop(false);
+          throw new Error("Transcription failed after " + tick.elapsedS() + "s — " + (te && te.message || "unknown error"));
+        }
         if (myToken !== uploadToken) return; // canceled mid-upload
         setModalStatus("progress", "Parsing…");
         await yield_();
@@ -866,6 +929,12 @@
     providerOpenrouter.checked = provider === "openrouter";
     showProviderFields(provider);
 
+    // Re-reflect the thinking pref each open — another stack app may have
+    // flipped the shared switch since this modal was last shown.
+    document.querySelectorAll('input[name="aiThinking"]').forEach(function (r) {
+      r.checked = r.value === getThinkingPref();
+    });
+
     var chname = $("#channelname"), chniche = $("#channelniche");
     if (chname) chname.value = s.channelName || "";
     if (chniche) chniche.value = s.channelNiche || "general";
@@ -894,6 +963,18 @@
 
   providerGemini.addEventListener("change", function () { if (providerGemini.checked) showProviderFields("gemini"); });
   providerOpenrouter.addEventListener("change", function () { if (providerOpenrouter.checked) showProviderFields("openrouter"); });
+
+  // AI speed vs. quality — persists immediately on change (both the own key
+  // and the shared store), NOT via the Save button, so flipping it can never
+  // be lost to a key-validation bail-out in the save handler.
+  (function () {
+    var radios = document.querySelectorAll('input[name="aiThinking"]');
+    if (!radios.length) return;
+    radios.forEach(function (r) {
+      r.checked = r.value === getThinkingPref();
+      r.addEventListener("change", function () { if (r.checked) setThinkingPref(r.value); });
+    });
+  })();
 
   keyshow.addEventListener("click", function () {
     if (gemkey.type === "password") { gemkey.type = "text"; keyshow.textContent = "hide"; }
@@ -1330,7 +1411,8 @@
   if(window.TopClips)window.TopClips.init({
     getState:function(){return state}, save:save, search:search,
     toggleBin:toggleBin, renderBin:renderBin, binHas:binHas, esc:esc, toast:toast,
-    getProviderConfig:getProviderConfig, loadSettings:loadSettings
+    getProviderConfig:getProviderConfig, loadSettings:loadSettings,
+    aiTicker:aiTicker, getThinkingPref:getThinkingPref
   });
 
   // Register service worker so the app shell caches for offline use after the

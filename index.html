@@ -152,6 +152,19 @@
           HOOKLAB, BLAST, and PULSE on this device — enter a key once, it works everywhere.</p>
       </div>
 
+      <div>
+        <label>AI speed vs. quality</label>
+        <div class="providerrow">
+          <label class="radiopill"><input type="radio" name="aiThinking" value="on" checked>Best quality <span class="pilltag">thinking</span></label>
+          <label class="radiopill"><input type="radio" name="aiThinking" value="off">Fastest</label>
+        </div>
+        <p class="hint" style="margin-top:8px">"Best quality" lets Gemini think before answering — better
+          results, slower. "Fastest" skips thinking. Gemini only (OpenRouter models decide for themselves).
+          Transcription always skips thinking, and Top Clips scanning always thinks — this switch covers
+          AI COMPOSE and the rest. Saves instantly and applies across RECALL, HOOKLAB, and BLAST on this
+          device.</p>
+      </div>
+
       <div id="geminiFields"><label>Gemini API key</label>
         <div class="keyrow">
           <input id="gemkey" type="password" placeholder="AIza… or AQ.…" autocomplete="off" spellcheck="false">
