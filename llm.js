@@ -323,7 +323,9 @@
   // cuts them off mid-thought: the reply is pure chain-of-thought prose and no
   // JSON ever arrives. Detect them by id so we can give them room and ask them
   // to keep the monologue to themselves.
-  var OR_REASONING_RE = /opus|o1|o3(?!-mini)|deepseek-r1|\br1\b|qwq|qwen-?3|glm-4\.[5-9]|kimi|minimax|magistral|sonar-reasoning|grok-[3-9]|reason|think/i;
+  // Router ids (openrouter/free, openrouter/auto*) are included: they can hand
+  // the request to a reasoning model, so they get the same headroom.
+  var OR_REASONING_RE = /opus|o1|o3(?!-mini)|deepseek-r1|\br1\b|qwq|qwen-?3|glm-4\.[5-9]|kimi|minimax|magistral|sonar-reasoning|grok-[3-9]|reason|think|openrouter\/(free|auto)/i;
   var REASONING_HEADROOM = 3;
   function isReasoningModel(model) { return OR_REASONING_RE.test(String(model || "")); }
 
