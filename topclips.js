@@ -241,7 +241,7 @@ window.TopClips = (function () {
       mode: "quote",
     };
   }
-  function aiComposePost(candidate, settings) {
+  function aiComposePost(candidate, settings, onPhase) {
     var evidence =
       candidate.match && candidate.match.kind === "pattern"
         ? 'matches proven pattern "' + candidate.match.patternName + '" (scaffold: "' + candidate.match.scaffold + '")'
@@ -259,8 +259,15 @@ window.TopClips = (function () {
       "Channel: " + ((settings && settings.channelName) || "unnamed") +
       ", niche: " + ((settings && settings.channelNiche) || "general") + ".\n" +
       'Return strict JSON only: {"x":"<post, hard max 280 chars>","threads":"<post, hard max 500 chars>"}';
+    // Follows the stack-wide thinking toggle: "on" buys a bounded think plus
+    // headroom for it (thinking tokens count against maxOutputTokens); "off"
+    // is the fast path with the original tight cap.
+    var thinkingOn = !D.getThinkingPref || D.getThinkingPref() === "on";
     return window.LLMProvider.generateText(D.getProviderConfig(), {
-      prompt: prompt, temperature: 0.5, jsonMode: true, maxTokens: 600,
+      prompt: prompt, temperature: 0.5, jsonMode: true,
+      thinkingBudget: thinkingOn ? 1024 : 0,
+      maxTokens: thinkingOn ? 2048 : 600,
+      onPhase: onPhase,
     }).then(function (text) {
       var parsed;
       try { parsed = JSON.parse(text); }
@@ -554,6 +561,9 @@ window.TopClips = (function () {
     // Top Clips is the one hard reasoning task in the stack: bounded thinking so
     // it can select without the reasoning tokens eating the output budget, a
     // roomy cap, and partial-salvage so a token-limit cutoff isn't fatal.
+    // DELIBERATELY ignores the stack-wide thinking toggle: with thinking off
+    // this call provably returns empty/misshaped selections (the 7/22 arc), so
+    // "Fastest" must never be allowed to break it.
     return window.LLMProvider.generateText(D.getProviderConfig(), {
       prompt: prompt, temperature: 0.4, jsonMode: true, maxTokens: 16000,
       thinkingBudget: 4096, partialOnTruncate: true, onPhase: onPhase,
@@ -728,7 +738,8 @@ window.TopClips = (function () {
       postVariantHtml(c, "x", "X") +
       postVariantHtml(c, "threads", "Threads") +
       (keyed
-        ? '<button class="postai">✦ AI COMPOSE</button>'
+        ? '<button class="postai">✦ AI COMPOSE</button>' +
+          '<div class="postainote" aria-live="polite"></div>'
         : '<div class="tchint">Offline quote mode — add an API key in Settings for AI compose.</div>') +
       "</div>";
   }
@@ -783,14 +794,28 @@ window.TopClips = (function () {
     if (aiBtn) {
       aiBtn.addEventListener("click", function () {
         aiBtn.disabled = true;
-        aiBtn.textContent = "Composing…";
-        aiComposePost(c, D.loadSettings()).then(function (result) {
+        var note = panel.querySelector(".postainote");
+        if (note) { note.textContent = ""; note.classList.remove("on"); }
+        // Live "Composing… Ns (typically ~Ns)" on the button itself; on
+        // failure the panel keeps a persistent note (the toast alone fades in
+        // ~2s — too easy to miss why nothing changed).
+        var tick = D.aiTicker
+          ? D.aiTicker("compose", "Composing", function (txt) { aiBtn.textContent = txt; })
+          : { onPhase: null, elapsedS: function () { return 0; }, stop: function () {} };
+        aiComposePost(c, D.loadSettings(), tick.onPhase).then(function (result) {
+          tick.stop(true);
           postDrafts[c.key] = result;
           renderTopClips(lastCandidates, lastMeta); // panel stays open via openPostKey
         }).catch(function (err) {
+          tick.stop(false);
           console.warn("topclips ai compose:", err);
           aiBtn.disabled = false;
           aiBtn.textContent = "✦ AI COMPOSE";
+          if (note) {
+            note.textContent = "AI compose failed after " + tick.elapsedS() + "s — " +
+              (err && err.message || "unknown error") + ". Showing the verbatim quote instead.";
+            note.classList.add("on");
+          }
           D.toast("AI compose failed — showing verbatim quote");
         });
       });

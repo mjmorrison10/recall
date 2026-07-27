@@ -30,6 +30,31 @@
   function yield_() { return new Promise(function (r) { setTimeout(r, 0); }); }
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+  // === Request timeouts ===
+  // A hung fetch (dead wifi, stalled proxy) never rejects on its own, so the
+  // caller's catch/finally never run and the button freezes forever. Every
+  // AI-path fetch goes through fetchWithTimeout: the AbortController turns a
+  // hang into a normal, catchable Error after a deadline sized to the step.
+  var GEN_TIMEOUT_MS = 180000;          // generateContent / chat completion
+  var UPLOAD_START_TIMEOUT_MS = 30000;  // resumable-upload handshake
+  var UPLOAD_TIMEOUT_MS = 900000;       // the bytes — a 2GB video is legit slow
+  var POLL_TIMEOUT_MS = 15000;          // file-status poll (tiny response)
+  function fetchWithTimeout(url, init, ms, what) {
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var t = ctrl ? setTimeout(function () { ctrl.abort(); }, ms) : null;
+    var opts = init || {};
+    if (ctrl) opts.signal = ctrl.signal;
+    return fetch(url, opts).then(
+      function (res) { if (t) clearTimeout(t); return res; },
+      function (err) {
+        if (t) clearTimeout(t);
+        if (err && err.name === "AbortError") {
+          throw new Error((what || "Request") + " timed out — check your connection and try again");
+        }
+        throw err;
+      });
+  }
+
   // === Rate-limit retry ===
   // Free-tier Gemini (and OpenRouter) return HTTP 429 under light load. A
   // single 429 used to fail the whole AI pass; instead we retry a few times
@@ -109,7 +134,7 @@
   // === Gemini Files API (resumable upload, for files > GEMINI_INLINE_MAX_BYTES) ===
   async function uploadToGeminiFilesAPI(file, mime, apiKey, onPhase) {
     var startRes = await fetchWithRetry(function () {
-      return fetch(GEMINI_FILES_UPLOAD + "?key=" + encodeURIComponent(apiKey), {
+      return fetchWithTimeout(GEMINI_FILES_UPLOAD + "?key=" + encodeURIComponent(apiKey), {
         method: "POST",
         headers: {
           "X-Goog-Upload-Protocol": "resumable",
@@ -119,7 +144,7 @@
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ file: { display_name: file.name } }),
-      });
+      }, UPLOAD_START_TIMEOUT_MS, "Upload start");
     }, retryReporter(onPhase));
     if (!startRes.ok) {
       if (startRes.status === 401 || startRes.status === 403) throw new Error("Gemini API key rejected — open Settings");
@@ -129,7 +154,7 @@
     }
     var uploadUrl = startRes.headers.get("X-Goog-Upload-URL");
     if (!uploadUrl) throw new Error("No upload URL returned by Gemini");
-    var uploadRes = await fetch(uploadUrl, {
+    var uploadRes = await fetchWithTimeout(uploadUrl, {
       method: "POST",
       headers: {
         "X-Goog-Upload-Command": "upload, finalize",
@@ -137,7 +162,7 @@
         "Content-Length": String(file.size),
       },
       body: file,
-    });
+    }, UPLOAD_TIMEOUT_MS, "File upload");
     if (!uploadRes.ok) throw new Error("File upload failed (HTTP " + uploadRes.status + ")");
     var data = await uploadRes.json();
     return data && data.file ? data.file : data;
@@ -157,7 +182,7 @@
     var deadline = Date.now() + 120000;
     var url = geminiFileResourceUrl(fileName, apiKey);
     while (Date.now() < deadline) {
-      var r = await fetch(url);
+      var r = await fetchWithTimeout(url, null, POLL_TIMEOUT_MS, "File status check");
       if (!r.ok) throw new Error("File status check failed (HTTP " + r.status + ")");
       var f = await r.json();
       if (f.state === "ACTIVE") return f;
@@ -211,11 +236,11 @@
     if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
     if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {
-      return fetch(GEMINI_TEXT_ENDPOINT + "?key=" + encodeURIComponent(apiKey), {
+      return fetchWithTimeout(GEMINI_TEXT_ENDPOINT + "?key=" + encodeURIComponent(apiKey), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: opts.prompt }] }], generationConfig: generationConfig }),
-      });
+      }, GEN_TIMEOUT_MS, "AI request");
     }, retryReporter(opts.onPhase));
     return extractGeminiText(res, opts.partialOnTruncate);
   }
@@ -250,15 +275,18 @@
     onPhase("Analyzing");
     await yield_();
     try {
+      // Transcription never thinks — deliberately hardcoded 0, independent of
+      // the app's thinking toggle (thinking adds nothing to verbatim output
+      // and its tokens would eat the transcript's output budget).
       var generationConfig = { temperature: 0.1, thinkingConfig: { thinkingBudget: 0 } };
       if (opts.jsonMode) generationConfig.responseMimeType = "application/json";
       if (opts.maxTokens) generationConfig.maxOutputTokens = opts.maxTokens;
       var res = await fetchWithRetry(function () {
-        return fetch(GEMINI_TEXT_ENDPOINT + "?key=" + encodeURIComponent(apiKey), {
+        return fetchWithTimeout(GEMINI_TEXT_ENDPOINT + "?key=" + encodeURIComponent(apiKey), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contents: [{ parts: [{ text: opts.prompt }, mediaPart] }], generationConfig: generationConfig }),
-        });
+        }, GEN_TIMEOUT_MS, "AI analysis");
       }, retryReporter(onPhase));
       return await extractGeminiText(res);
     } finally {
@@ -304,7 +332,7 @@
     if (opts.jsonMode) body.response_format = { type: "json_object" };
     if (opts.maxTokens) body.max_tokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {
-      return fetch(OPENROUTER_ENDPOINT, { method: "POST", headers: openrouterHeaders(apiKey), body: JSON.stringify(body) });
+      return fetchWithTimeout(OPENROUTER_ENDPOINT, { method: "POST", headers: openrouterHeaders(apiKey), body: JSON.stringify(body) }, GEN_TIMEOUT_MS, "AI request");
     }, retryReporter(opts.onPhase));
     return extractOpenrouterText(res);
   }
@@ -339,7 +367,7 @@
     if (opts.jsonMode) body.response_format = { type: "json_object" };
     if (opts.maxTokens) body.max_tokens = opts.maxTokens;
     var res = await fetchWithRetry(function () {
-      return fetch(OPENROUTER_ENDPOINT, { method: "POST", headers: openrouterHeaders(apiKey), body: JSON.stringify(body) });
+      return fetchWithTimeout(OPENROUTER_ENDPOINT, { method: "POST", headers: openrouterHeaders(apiKey), body: JSON.stringify(body) }, GEN_TIMEOUT_MS, "AI analysis");
     }, retryReporter(onPhase));
     return extractOpenrouterText(res);
   }
