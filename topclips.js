@@ -286,14 +286,20 @@ window.TopClips = (function () {
       };
     });
   }
-  function sendToBlast(text) {
-    try {
-      localStorage.setItem(HANDOFF_KEY, JSON.stringify({
-        caption: text, source: "recall-topclips", createdAt: Date.now(),
-      }));
-    } catch (e) { D.toast("Couldn't hand off (storage full?)"); return; }
-    window.open(new URL("../blast/", location.href).href, "_blank", "noopener");
-    D.toast("Sent to BLAST");
+  // Both handoff writers live in app.js (see D.sendToBlast / D.queueToBlast) so
+  // the app.js -> TopClips dependency arrow stays one-directional.
+  function sendToBlast(text) { D.sendToBlast(text, "recall-topclips"); }
+
+  // Every card currently on screen -> BLAST's batch queue. Unlike the bin,
+  // these carry hookText and the proof label, which BLAST seeds captions from
+  // and PULSE later stores as the post's hook.
+  function sendAllToBlast() {
+    D.queueToBlast(lastShown.map(function (c) {
+      return {
+        key: c.key, srcId: c.srcId, srcTitle: c.srcTitle, t: c.t, sec: c.sec,
+        text: c.hookText || c.text, hookText: c.hookText || "", label: c.label || "",
+      };
+    }), "recall-topclips");
   }
 
   function scanLibrary(theBank, winners, settings, onProgress, onlySrcId) {
@@ -662,6 +668,8 @@ window.TopClips = (function () {
       '<div class="tchead">' +
       '<button class="tcback" id="tcback">← BACK TO SEARCH</button>' +
       (shown.length ? '<button class="tcback" id="tccopy">⧉ COPY SHOT LIST</button>' : "") +
+      (shown.length && hasKey(D.getProviderConfig())
+        ? '<button class="tcback" id="tcblastall" title="Send every clip below to BLAST and caption them in one batch">→ SEND ALL TO BLAST</button>' : "") +
       (meta.scout && meta.scoutSrcId
         ? '<button class="tcback" id="tcrescan">⟳ RE-SCAN' + (hasKey(D.getProviderConfig()) ? " (uses AI)" : "") + "</button>"
         : "") +
@@ -828,6 +836,8 @@ window.TopClips = (function () {
     if (rescan) rescan.addEventListener("click", function () {
       if (lastMeta && lastMeta.scoutSrcId) scout(lastMeta.scoutSrcId);
     });
+    var blastAll = document.querySelector("#tcblastall");
+    if (blastAll) blastAll.addEventListener("click", sendAllToBlast);
     var copy = document.querySelector("#tccopy");
     if (copy) copy.addEventListener("click", function () {
       var text = shotListText(lastShown, lastMeta);
