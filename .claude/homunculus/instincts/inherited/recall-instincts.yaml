@@ -1,0 +1,297 @@
+# Instincts generated from https://github.com/mjmorrison10/recall
+# Generated: 2026-07-28T21:15:18.472Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: recall-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/mjmorrison10/recall
+---
+
+# Recall Commit Length
+
+## Action
+
+Write moderate-length commit messages (~63 characters)
+
+## Evidence
+
+- Average commit message length: 63 chars
+- Based on 1 commits
+
+---
+id: recall-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mjmorrison10/recall
+---
+
+# Recall Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: recall-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mjmorrison10/recall
+---
+
+# Recall Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: recall-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/mjmorrison10/recall
+---
+
+# Recall Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: recall-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/mjmorrison10/recall
+---
+
+# Recall Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: recall-instinct-file-naming-camelCase
+trigger: "When creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct File Naming CamelCase
+
+## Action
+
+Name the file using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.files
+
+---
+id: recall-instinct-function-naming-camelCase
+trigger: "When defining a function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Function Naming CamelCase
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: recall-instinct-class-naming-PascalCase
+trigger: "When defining a class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Class Naming PascalCase
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: recall-instinct-constant-naming-SCREAMING_SNAKE_CASE
+trigger: "When declaring a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Constant Naming SCREAMING_SNAKE_CASE
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: recall-instinct-import-relative
+trigger: "When importing modules"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Import Relative
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: recall-instinct-export-named
+trigger: "When exporting modules or functions"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Export Named
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: recall-instinct-commit-freeform
+trigger: "When writing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Commit Freeform
+
+## Action
+
+Write a freeform message without a strict prefix
+
+## Evidence
+
+- Pattern in commits.type
+- Example: 'Declare the ECC plugin and vendor its common + typescript rules'
+
+---
+id: recall-instinct-commit-length-medium
+trigger: "When composing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Commit Length Medium
+
+## Action
+
+Aim for a message around 60 characters in length
+
+## Evidence
+
+- Pattern in commits.averageLength
+
+---
+id: recall-instinct-test-location-separate
+trigger: "When adding or updating tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Test Location Separate
+
+## Action
+
+Place test files in a separate directory from source files
+
+## Evidence
+
+- Pattern in architecture.testLocation
+
+---
+id: recall-instinct-single-package-structure
+trigger: "When organizing the project structure"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: mjmorrison10/recall
+---
+
+# Recall Instinct Single Package Structure
+
+## Action
+
+Use a single-package repository layout
+
+## Evidence
+
+- Pattern in architecture.folderStructure.type
+
