@@ -191,6 +191,17 @@ window.TopClips = (function () {
     }
   }
 
+  // Pattern ids that have actually WON for this creator — a ledger winner whose
+  // entry names a pattern. This is the strongest evidence the app has: not "this
+  // scaffold works in general" but "this scaffold worked for you, with the view
+  // count to prove it". PULSE stamps patternId on auto-promoted winners, so this
+  // set fills itself as breakouts land.
+  function winnerPatternSet(winners) {
+    var set = Object.create(null);
+    (winners || []).forEach(function (w) { if (w && w.patternId) set[w.patternId] = 1; });
+    return set;
+  }
+
   // --- offline scan ---
   var LEDGER_SIM = 0.55;      // near-verbatim reuse of a proven hook
   var SKEL_CONTAIN = 0.75;    // scaffold skeleton mostly present in the line
@@ -293,13 +304,24 @@ window.TopClips = (function () {
   // Every card currently on screen -> BLAST's batch queue. Unlike the bin,
   // these carry hookText and the proof label, which BLAST seeds captions from
   // and PULSE later stores as the post's hook.
+  //
+  // The pattern match travels too. RECALL is the only app that computes it, and
+  // without it PULSE has nothing to stamp on an auto-promoted ledger entry —
+  // which is why early auto entries all landed in family "unknown".
+  function clipHandoff(c) {
+    var m = c.match || {};
+    var pid = m.patternId || "";
+    var pat = pid && bank ? findPattern(bank, pid) : null;
+    return {
+      key: c.key, srcId: c.srcId, srcTitle: c.srcTitle, t: c.t, sec: c.sec,
+      text: c.hookText || c.text, hookText: c.hookText || "", label: c.label || "",
+      patternId: pid,
+      patternName: m.patternName || (pat ? pat.name : ""),
+      patternFamily: pat ? pat.family : "",
+    };
+  }
   function sendAllToBlast() {
-    D.queueToBlast(lastShown.map(function (c) {
-      return {
-        key: c.key, srcId: c.srcId, srcTitle: c.srcTitle, t: c.t, sec: c.sec,
-        text: c.hookText || c.text, hookText: c.hookText || "", label: c.label || "",
-      };
-    }), "recall-topclips");
+    D.queueToBlast(lastShown.map(clipHandoff), "recall-topclips");
   }
 
   function scanLibrary(theBank, winners, settings, onProgress, onlySrcId) {
@@ -318,6 +340,7 @@ window.TopClips = (function () {
       var provenPatterns = theBank.patterns.filter(function (p) {
         return p.strength >= 0.8 && p.evidence !== "hypothesis";
       });
+      var wonPatterns = winnerPatternSet(winners);
       var niche = (settings && settings.channelNiche) || "";
 
       function step() {
@@ -333,7 +356,7 @@ window.TopClips = (function () {
             key: f.s.id + "@" + f.seg.sec + "@" + f.idx,
             ctxPrev: f.idx > 0 ? lastWords(f.s.segments[f.idx - 1].text, 12) : "",
             ctxNext: f.idx < f.s.segments.length - 1 ? firstWords(f.s.segments[f.idx + 1].text, 12) : "",
-            label: null, proofType: null, match: null,
+            label: null, proofType: null, match: null, personalProof: false,
             grounding: "", reason: "", sim: 0, spec: specificityScore(text), noise: noiseScore(text), rank: 0,
           };
           // 1) ledger Proof — your own proven winners first
@@ -344,7 +367,9 @@ window.TopClips = (function () {
           }
           if (bestLed >= LEDGER_SIM) {
             cand.label = "proof"; cand.proofType = "ledger"; cand.sim = bestLed;
-            cand.match = { kind: "ledger", hook: bestHook.hook };
+            // Matching a winning hook IS personal proof, whatever pattern it names.
+            cand.personalProof = true;
+            cand.match = { kind: "ledger", hook: bestHook.hook, patternId: bestHook.patternId || "" };
           } else {
             // 2) pattern Proof — high-evidence scaffold present in the line
             var bestC = 0, bestP = null;
@@ -356,12 +381,15 @@ window.TopClips = (function () {
             }
             if (bestP) {
               cand.label = "proof"; cand.proofType = "pattern"; cand.sim = bestC;
+              // A proven pattern is good; a proven pattern YOU have already won
+              // with is better, and outranks everything below.
+              cand.personalProof = !!wonPatterns[bestP.id];
               cand.match = { kind: "pattern", patternId: bestP.id, patternName: bestP.name, scaffold: bestP.scaffold };
             } else {
               cand.sim = Math.max(bestLed, bestC); // best sub-threshold signal
             }
           }
-          var evidenceWeight = cand.proofType === "ledger" ? 1.0
+          var evidenceWeight = cand.proofType === "ledger" || cand.personalProof ? 1.0
             : cand.proofType === "pattern" ? (cand.match && findPattern(theBank, cand.match.patternId) || {}).strength || 0.8
             : 0.4;
           var nicheBonus = 0;
@@ -377,9 +405,13 @@ window.TopClips = (function () {
         if (i < total) setTimeout(step, 0);
         else {
           out.sort(function (a, b) { return b.rank - a.rank; });
-          var proofs = out.filter(function (c) { return c.label === "proof"; });
+          // Personally-proven first, then general proof, then the rest. The cap
+          // never truncates proof of either kind.
+          var mine = out.filter(function (c) { return c.label === "proof" && c.personalProof; });
+          var proofs = out.filter(function (c) { return c.label === "proof" && !c.personalProof; });
           var rest = out.filter(function (c) { return c.label !== "proof"; });
-          resolve(proofs.concat(rest).slice(0, Math.max(AI_FEED_CAP, proofs.length)));
+          var head = mine.concat(proofs);
+          resolve(head.concat(rest).slice(0, Math.max(AI_FEED_CAP, head.length)));
         }
       }
       step();
@@ -464,6 +496,7 @@ window.TopClips = (function () {
   function mergeAIResults(candidates, parsed, theBank, winners) {
     var clips = (parsed && parsed.clips) || [];
     var stats = { returned: clips.length, aiAdded: 0, hooksAdded: 0, hookRejected: 0, proofEchoes: 0, badIndex: 0, badLabel: 0 };
+    var wonPatterns = winnerPatternSet(winners);
     var byIdx = Object.create(null);
     clips.forEach(function (cl) {
       // Coerce the index — Gemini frequently returns "i":"0" (a string).
@@ -519,6 +552,7 @@ window.TopClips = (function () {
         if (!pat && !groundsWinner) label = "ai";
         else if (pat && !c.match) {
           c.match = { kind: "pattern", patternId: pat.id, patternName: pat.name, scaffold: pat.scaffold };
+          if (wonPatterns[pat.id]) c.personalProof = true;
         }
       }
       c.label = label;
@@ -527,8 +561,13 @@ window.TopClips = (function () {
       stats.aiAdded++;
       acceptHook(c, cl);
     });
+    // Personal proof is the primary key: a formula that has already won for this
+    // creator outranks general evidence. Within it, offline-verified proof still
+    // beats an AI-claimed match, then rank.
     var order = { proof: 0, ai_proof: 1, ai: 2 };
     var merged = candidates.slice().sort(function (a, b) {
+      var pa = a.personalProof ? 0 : 1, pb = b.personalProof ? 0 : 1;
+      if (pa !== pb) return pa - pb;
       var la = a.label ? order[a.label] : 9, lb = b.label ? order[b.label] : 9;
       return la !== lb ? la - lb : b.rank - a.rank;
     });
@@ -604,7 +643,8 @@ window.TopClips = (function () {
   function groundingHtml(c) {
     var esc = D.esc;
     if (c.match && c.match.kind === "pattern") {
-      return '<div class="tcground">matches: <b>' + esc(c.match.patternName) + '</b> — “' + esc(c.match.scaffold) + '”</div>';
+      return '<div class="tcground">matches: <b>' + esc(c.match.patternName) + '</b> — “' + esc(c.match.scaffold) + '”' +
+        (c.personalProof ? '<span class="tcmine">you have already won with this pattern</span>' : "") + "</div>";
     }
     if (c.match && c.match.kind === "ledger") {
       return '<div class="tcground">matches your winner: <b>“' + esc(c.match.hook) + '”</b></div>';
@@ -655,6 +695,11 @@ window.TopClips = (function () {
     } else {
       shown = labeled.slice(0, DISPLAY_CAP);
     }
+    // The proof/AI display mix above can put an AI card ahead of a personally
+    // proven one. Restore the promise: what has already won for you comes first.
+    // filter() is stable, so relative order inside each group is untouched.
+    shown = shown.filter(function (c) { return c.personalProof; })
+      .concat(shown.filter(function (c) { return !c.personalProof; }));
     // In scout mode, a source may have no proven-pattern matches offline. Rather
     // than show nothing, backfill with the most specific un-proven lines tagged
     // SCAN, so the editor always gets a usable shot list.
@@ -711,7 +756,15 @@ window.TopClips = (function () {
     }).join("");
     bindHead();
     results.querySelectorAll(".addbtn").forEach(function (b) {
-      b.addEventListener("click", function () { D.toggleBin(b.dataset.src, +b.dataset.idx); });
+      b.addEventListener("click", function () {
+        // Hand the card's hook + pattern to the bin. Binning from plain search
+        // has none of that and passes nothing, exactly as before.
+        var c = null;
+        for (var i = 0; i < lastShown.length; i++) {
+          if (lastShown[i].key === b.dataset.key) { c = lastShown[i]; break; }
+        }
+        D.toggleBin(b.dataset.src, +b.dataset.idx, c ? clipHandoff(c) : null);
+      });
     });
     bindPostControls(results, shown);
   }

@@ -410,12 +410,24 @@
     });
   }
 
-  function toggleBin(srcId,idx){
+  // `extra` is optional metadata from a Top Clips card (hook + matched pattern).
+  // Binning from plain search passes nothing and behaves exactly as it always
+  // has; binning from a recommendation now keeps what RECALL already worked out
+  // instead of dropping it on the floor.
+  function toggleBin(srcId,idx,extra){
     var s=state.sources.find(function(x){return x.id===srcId}); if(!s)return;
     var seg=s.segments[idx], key=srcId+"@"+seg.sec+"@"+idx;
     var at=state.bin.findIndex(function(b){return b.key===key});
     if(at>=0)state.bin.splice(at,1);
-    else state.bin.push({key:key,srcId:srcId,srcTitle:s.title,t:seg.t,sec:seg.sec,text:seg.text});
+    else{
+      var item={key:key,srcId:srcId,srcTitle:s.title,t:seg.t,sec:seg.sec,text:seg.text};
+      if(extra){
+        ["hookText","label","patternId","patternName","patternFamily"].forEach(function(f){
+          if(extra[f])item[f]=extra[f];
+        });
+      }
+      state.bin.push(item);
+    }
     save();
     // Inside Top Clips mode, refresh its cards instead of repainting search —
     // otherwise +BIN would wipe the recommendations view.
@@ -586,49 +598,69 @@
     return true;
   }
 
-  // clips: [{key, srcId, srcTitle, t, sec, text, hookText?, label?}]
+  // clips: [{key, srcId, srcTitle, t, sec, text, hookText?, label?,
+  //          patternId?, patternName?, patternFamily?}]
   // Appends to the existing queue, skipping clips already there (re-sending a
-  // bin you've grown by three shouldn't duplicate the other twenty).
+  // bin you've grown by three shouldn't duplicate the other twenty) — but a
+  // re-send DOES fill in metadata the queued twin is missing, so a clip queued
+  // before its hook or pattern was known can be healed by sending it again.
+  var HANDOFF_META = ["hookText","label","patternId","patternName","patternFamily"];
   function queueToBlast(clips, source){
     if(!clips || !clips.length){ toast("Nothing to send"); return false; }
     var q;
     try{ q = JSON.parse(localStorage.getItem("blast_queue_v1")) || null; }catch(e){ q = null; }
     if(!q || q.v !== 1 || !Array.isArray(q.clips)) q = { v:1, updatedAt:0, defaultPlatforms:null, clips:[] };
-    var seen = Object.create(null);
-    q.clips.forEach(function(c){ seen[c.key] = 1; });
-    var added = 0, skipped = 0;
+    var byKey = Object.create(null);
+    q.clips.forEach(function(c){ byKey[c.key] = c; });
+    var added = 0, skipped = 0, healed = 0;
     clips.forEach(function(c){
       if(!c || !c.key) return;
-      if(seen[c.key]){ skipped++; return; }
-      seen[c.key] = 1;
-      q.clips.push({
+      var twin = byKey[c.key];
+      if(twin){
+        var filled = 0;
+        HANDOFF_META.forEach(function(f){
+          if(c[f] && !twin[f]){ twin[f] = c[f]; filled++; }
+        });
+        if(filled){ twin.updatedAt = Date.now(); healed++; } else skipped++;
+        return;
+      }
+      var np = {
         key: c.key, srcId: c.srcId || "", srcTitle: c.srcTitle || "",
         t: c.t || "", sec: c.sec || 0,
         text: String(c.text || "").trim(),
         hookText: String(c.hookText || "").trim(),
         label: c.label || "",
+        patternId: c.patternId || "", patternName: c.patternName || "", patternFamily: c.patternFamily || "",
         platforms: null,
         captions: {}, titles: {}, suggestions: {}, picked: {},
         status: {}, postUrl: {}, postedAt: {}, postedCaption: {},
         genState: "pending", genError: "",
         source: source || "recall", createdAt: Date.now(), updatedAt: Date.now(),
-      });
+      };
+      byKey[c.key] = np;
+      q.clips.push(np);
       added++;
     });
     q.updatedAt = Date.now();
     try{ localStorage.setItem("blast_queue_v1", JSON.stringify(q)); }
     catch(e){ toast("Couldn't queue (storage full?)"); return false; }
     openBlast();
+    var tail = [];
+    if(healed) tail.push(healed + " updated");
+    if(skipped) tail.push(skipped + " already queued");
     toast("Queued " + added + " clip" + (added===1?"":"s") + " for BLAST" +
-      (skipped ? " (" + skipped + " already queued)" : ""));
+      (tail.length ? " (" + tail.join(", ") + ")" : ""));
     return true;
   }
 
-  // Whole bin -> BLAST queue. Bin items carry no hookText, so the moment text
-  // is both the hook and the caption seed.
+  // Whole bin -> BLAST queue. Items binned from a Top Clips card carry the hook
+  // and pattern; items binned from plain search carry neither, and there the
+  // moment text is both the hook and the caption seed, as before.
   if(binBlastBtn)binBlastBtn.addEventListener("click",function(){
     queueToBlast(state.bin.map(function(b){
-      return {key:b.key, srcId:b.srcId, srcTitle:b.srcTitle, t:b.t, sec:b.sec, text:b.text};
+      var o = {key:b.key, srcId:b.srcId, srcTitle:b.srcTitle, t:b.t, sec:b.sec, text:b.text};
+      HANDOFF_META.forEach(function(f){ if(b[f]) o[f] = b[f]; });
+      return o;
     }), "recall-bin");
   });
 
